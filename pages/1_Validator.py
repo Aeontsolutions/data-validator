@@ -133,7 +133,7 @@ if not df.empty:
                 deck = pdk.Deck(
                     map_style='mapbox://styles/mapbox/satellite-streets-v12',
                     initial_view_state=view_state,
-                    api_keys={'mapbox': os.getenv("MAPBOX_TOKEN")},
+                    api_keys={'mapbox': st.secrets["MAPBOX_TOKEN"] or os.getenv("MAPBOX_TOKEN")},
                     layers=[
                         pdk.Layer(
                             'ScatterplotLayer',
