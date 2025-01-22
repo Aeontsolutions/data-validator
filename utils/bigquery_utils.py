@@ -49,6 +49,17 @@ def fetch_data(client):
     """
     return client.query(query).to_dataframe(create_bqstorage_client=True)
 
+def fetch_data_all(client):
+    # Get environment variables from either source
+    project_id = st.secrets.get("PROJECT_ID") or os.getenv('PROJECT_ID')
+    dataset_id = st.secrets.get("DATASET_ID") or os.getenv('DATASET_ID')
+    table_id = st.secrets.get("TABLE_ID") or os.getenv('TABLE_ID')
+    
+    query = f"""
+        SELECT * FROM `{project_id}.{dataset_id}.{table_id}`
+    """
+    return client.query(query).to_dataframe(create_bqstorage_client=True)
+
 # Update validation status
 def update_validation(client, row_ids, user):
     if not row_ids:
