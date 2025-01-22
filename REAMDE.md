@@ -30,30 +30,67 @@ A Streamlit-based application for property listings data validation and visualiz
 - Python 3.8 or higher
 - Google Cloud Platform account with BigQuery enabled
 - Mapbox API token
-- Required Python packages (see `requirements.txt`)
+- Required Python packages (see `poetry.lock`)
 
-### Installation
+## Development
 
-1. Clone the repository:
+### Local Development Setup
+
+1. Install Poetry (if not already installed):
 ```bash
-git clone https://github.com/yourusername/property-validator.git
-cd property-validator
+curl -sSL https://install.python-poetry.org | python3 -
 ```
 
-2. Install dependencies:
+2. Clone and install dependencies:
 ```bash
-pip install -r requirements.txt
+git clone https://github.com/Aeontsolutions/data-validator.git
+cd data-validator
+poetry install
 ```
 
-3. Set up your environment variables in `.env`:
-```env
-GOOGLE_APPLICATION_CREDENTIALS=path/to/your/credentials.json
-MAPBOX_TOKEN=your_mapbox_token
+3. Activate the virtual environment:
+```bash
+poetry shell
 ```
 
-4. Run the Streamlit app:
+4. Set up your development environment:
 ```bash
-streamlit run Home.py
+cp .env.example .env
+# Edit .env with your development credentials
+```
+
+### Development Best Practices
+
+1. **Managing Dependencies**
+```bash
+   # Add a new dependency
+   poetry add package-name
+   
+   # Add a development dependency
+   poetry add --group dev package-name
+   
+   # Update dependencies
+   poetry update
+```
+
+2. **Running the Application**
+```bash
+   poetry run streamlit run Home.py
+   # For debug mode:
+   poetry run streamlit run Home.py --debug
+```
+
+### Project Structure
+```
+├── pages/                  # Streamlit pages
+│   ├── 1_Validator.py     # Validation interface
+│   └── 2_Dashboard.py     # Analytics dashboard
+├── utils/                  # Utility functions
+│   └── bigquery_utils.py  # BigQuery operations
+├── .env                   # Environment variables
+├── pyproject.toml         # Poetry configuration
+├── poetry.lock           # Lock file
+└── Home.py               # Main application entry
 ```
 
 ## Usage
@@ -106,23 +143,3 @@ The application expects the following property data fields:
 - [PyDeck](https://pydeck.gl/) - Geospatial visualization
 - [Mapbox](https://www.mapbox.com/) - Satellite imagery
 - [Pandas](https://pandas.pydata.org/) - Data manipulation
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the project
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Streamlit team for the excellent framework
-- Mapbox for satellite imagery integration
-- Google Cloud Platform for BigQuery services
