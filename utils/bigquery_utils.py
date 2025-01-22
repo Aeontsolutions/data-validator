@@ -1,4 +1,5 @@
 import streamlit as st
+import json
 import os
 from google.cloud import bigquery
 from datetime import datetime
@@ -7,6 +8,10 @@ from dotenv import load_dotenv
 from google.oauth2 import service_account
 
 load_dotenv()
+
+if not os.path.exists("credentials.json"):
+    with open("credentials.json", "w") as f:
+        json.dump(json.loads(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"]), f)
 
 def create_bigquery_client():
     # Try to get credentials from Streamlit secrets first, then fall back to .env
