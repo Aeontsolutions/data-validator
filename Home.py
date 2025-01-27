@@ -1,6 +1,4 @@
 import streamlit as st
-import yaml
-from yaml.loader import SafeLoader
 import streamlit_authenticator as stauth
 
 st.set_page_config(
@@ -9,17 +7,26 @@ st.set_page_config(
     layout="wide"
 )
 
-with open('utils/auth_config.yaml') as file:
-    config = yaml.load(file, Loader=SafeLoader)
-    
-# Generate hashed passwords
-stauth.Hasher.hash_passwords(config['credentials'])
+# Create a separate dictionary for credentials
+credentials = {
+    "usernames": {}
+}
 
+# Get usernames from secrets
+for username in st.secrets["credentials"]["usernames"]:
+    user_data = st.secrets["credentials"]["usernames"][username]
+    credentials["usernames"][username] = {
+        "email": user_data["email"],
+        "name": f"{user_data['first_name']} {user_data['last_name']}",
+        "password": user_data["password"]
+    }
+
+# Create the authenticator
 authenticator = stauth.Authenticate(
-    config['credentials'],
-    config['cookie']['name'],
-    config['cookie']['key'],
-    config['cookie']['expiry_days']
+    credentials,
+    st.secrets["cookie"]["name"],
+    st.secrets["cookie"]["key"],
+    st.secrets["cookie"]["expiry_days"]
 )
 
 # Custom CSS for better styling
