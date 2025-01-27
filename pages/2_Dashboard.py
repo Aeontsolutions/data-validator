@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-if 'authentication_status' not in st.session_state:
+if 'authentication_status' not in st.session_state or not st.session_state['authentication_status']:
     st.error('Please login to continue')
     st.stop()
 
