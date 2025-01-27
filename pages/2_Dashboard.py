@@ -14,6 +14,10 @@ st.set_page_config(
     layout="wide"
 )
 
+if 'authentication_status' not in st.session_state:
+    st.error('Please login to continue')
+    st.stop()
+
 # Custom CSS
 st.markdown("""
     <style>

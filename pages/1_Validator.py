@@ -12,6 +12,10 @@ load_dotenv()
 # Page config for wider layout
 st.set_page_config(layout="wide")
 
+if 'authentication_status' not in st.session_state:
+    st.error('Please login to continue')
+    st.stop()
+
 # Custom CSS for better styling
 st.markdown("""
     <style>
@@ -37,7 +41,7 @@ st.markdown("""
 st.markdown("<div class='validator-header'>", unsafe_allow_html=True)
 st.title("Human-in-the-Loop Data Validation")
 st.markdown("</div>", unsafe_allow_html=True)
-user = st.text_input("Validator Name:", placeholder="Enter your name")
+user = st.text_input("Validator Name:", value=st.session_state["name"], placeholder="Enter your name")
 
 # Create BigQuery client
 client = create_bigquery_client()
