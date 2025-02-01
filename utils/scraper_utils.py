@@ -179,7 +179,19 @@ def generate(encoded_image):
         st.error(f"Error in generate function: {str(e)}")
         raise
 
-text1 = """return the data seen in this image in json format as follows{property description: ,property address: , price: ,currency of price: , number of bedrooms: , number of bathrooms: , square feet: }"""
+text1 = """
+return the data seen in this image in json format as follows:
+{
+property description: ,
+property address: , 
+price: ,
+currency of price: , 
+number of bedrooms: , 
+number of bathrooms: , 
+square feet: 
+}
+Absolutely no other text or comments should be included in the response.
+"""
 
 generation_config = {
     "max_output_tokens": 8192,

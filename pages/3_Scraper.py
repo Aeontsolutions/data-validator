@@ -2,14 +2,10 @@ import streamlit as st
 import os
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from PIL import Image
 from io import BytesIO
 import json
-import base64
-from utils.scraper_utils import capture_webpage_screenshot, capture_webpage_screenshot_multiple, image_to_base64, generate
+from utils.scraper_utils import capture_webpage_screenshot, image_to_base64, generate
 
 def main():
     st.title("Webpage Screenshot Capture Tool")
@@ -38,25 +34,87 @@ def main():
                 try:
                     with st.spinner("Capturing screenshot..."):
                         screenshot = capture_webpage_screenshot(url, wait_time=wait_time)
-                        # Convert bytes to image for display
                         image = Image.open(BytesIO(screenshot))
                         
-                        # Save temporarily to convert to base64
                         temp_path = os.path.join(os.getcwd(), "screenshots", "temp.png")
                         os.makedirs(os.path.dirname(temp_path), exist_ok=True)
                         image.save(temp_path, format="PNG")
                         
-                        # Convert to base64
                         base64_image = image_to_base64(temp_path)
+                        raw_response = generate(base64_image)
                         
-                        # Display the image
-                        st.image(image, caption="Captured Screenshot", use_container_width=True)
+                        # Parse the nested JSON string
+                        json_data = json.loads(raw_response["response"])
                         
-                        # Generate JSON data
-                        json_data = generate(base64_image)
-                        st.write(json_data)
+                        # Debug print to see the structure
+                        st.write("Debug - JSON Response:", json_data)
                         
-                        # Clean up temporary file
+                        # Create two columns for side-by-side display
+                        col1, col2 = st.columns(2)
+                        
+                        # Display image in left column
+                        with col1:
+                            st.image(image, caption="Captured Screenshot", use_container_width=True)
+                        
+                        # Display editable fields in right column
+                        with col2:
+                            st.subheader("Edit Property Data")
+                            edited_data = {}
+                            
+                            # Try to get AI-generated data
+                            try:
+                                base64_image = image_to_base64(temp_path)
+                                raw_response = generate(base64_image)
+                                json_data = json.loads(raw_response["response"])
+                                st.info("AI data generated successfully")
+                            except Exception as e:
+                                st.error(f"AI data generation failed: {str(e)}")
+                                json_data = {
+                                    'property description': '',
+                                    'property address': '',
+                                    'price': '',
+                                    'currency of price': '',
+                                    'number of bedrooms': '',
+                                    'number of bathrooms': '',
+                                    'square feet': ''
+                                }
+                            
+                            edited_data['property_description'] = st.text_area(
+                                "Property Description",
+                                value=json_data.get('property description', ''),
+                                height=100
+                            )
+                            
+                            edited_data['property_address'] = st.text_input(
+                                "Property Address",
+                                value=json_data.get('property address', '')
+                            )
+                            
+                            edited_data['price'] = st.text_input(
+                                "Price",
+                                value=json_data.get('price', '')
+                            )
+                            
+                            edited_data['currency_of_price'] = st.text_input(
+                                "Currency",
+                                value=json_data.get('currency of price', '')
+                            )
+                            
+                            edited_data['bedrooms'] = st.text_input(
+                                "Number of Bedrooms",
+                                value=json_data.get('number of bedrooms', '')
+                            )
+                            
+                            edited_data['bathrooms'] = st.text_input(
+                                "Number of Bathrooms",
+                                value=json_data.get('number of bathrooms', '')
+                            )
+                            
+                            edited_data['square_feet'] = st.text_input(
+                                "Square Feet",
+                                value=json_data.get('square feet', '')
+                            )
+                        
                         if os.path.exists(temp_path):
                             os.remove(temp_path)
                             
@@ -94,39 +152,117 @@ def main():
                     
                     with st.spinner(f"Capturing screenshots for {len(url_list)} URLs..."):
                         output_paths = []
-                        json_data = []
+                        json_data_list = []
                         driver = None
                         try:
                             driver = webdriver.Chrome(options=chrome_options)
                             
                             for i, url in enumerate(url_list):
                                 try:
-                                    # Navigate to URL and capture screenshot
                                     driver.get(url)
                                     driver.implicitly_wait(wait_time)
                                     
-                                    # Create a safe filename
                                     safe_filename = f"screenshot_{i+1}.png"
                                     output_path = os.path.join(output_folder, safe_filename)
                                     
-                                    # Capture and save screenshot
                                     screenshot = driver.get_screenshot_as_png()
                                     with open(output_path, 'wb') as f:
                                         f.write(screenshot)
                                     output_paths.append(output_path)
                                     
-                                    # Convert to base64
+                                    # Add debug prints
+                                    st.write(f"Debug - Processing URL {i+1}: {url}")
+                                    
                                     base64_image = image_to_base64(output_path)
+                                    raw_response = generate(base64_image)
                                     
-                                    # Generate JSON data
-                                    json_data.append(generate(base64_image))
+                                    # Debug print raw response
+                                    st.write(f"Debug - Raw Response {i+1}:", raw_response)
                                     
-                                    # Display screenshot
-                                    image = Image.open(output_path)
-                                    st.image(image, caption=f"Screenshot {i+1}: {url}", use_container_width=True)
-                                    
-                                    # Display JSON data
-                                    st.write(json_data[i])
+                                    if raw_response and isinstance(raw_response, dict) and "response" in raw_response:
+                                        try:
+                                            json_data = json.loads(raw_response["response"])
+                                            json_data_list.append(json_data)
+                                            
+                                            # Create two columns for side-by-side display
+                                            col1, col2 = st.columns(2)
+                                            
+                                            # Display image in left column
+                                            with col1:
+                                                image = Image.open(output_path)
+                                                st.image(image, caption=f"Screenshot {i+1}: {url}", use_column_width=True)
+                                            
+                                            # Display editable fields in right column
+                                            with col2:
+                                                st.subheader(f"Edit Property Data {i+1}")
+                                                edited_data = {}
+                                                
+                                                # Try to get AI-generated data
+                                                try:
+                                                    base64_image = image_to_base64(output_path)
+                                                    raw_response = generate(base64_image)
+                                                    json_data = json.loads(raw_response["response"])
+                                                    st.info("AI data generated successfully")
+                                                except Exception as e:
+                                                    st.error(f"AI data generation failed: {str(e)}")
+                                                    json_data = {
+                                                        'property description': '',
+                                                        'property address': '',
+                                                        'price': '',
+                                                        'currency of price': '',
+                                                        'number of bedrooms': '',
+                                                        'number of bathrooms': '',
+                                                        'square feet': ''
+                                                    }
+                                                
+                                                edited_data['property_description'] = st.text_area(
+                                                    "Property Description",
+                                                    value=json_data.get('property description', ''),
+                                                    height=100,
+                                                    key=f"desc_{i}"
+                                                )
+                                                
+                                                edited_data['property_address'] = st.text_input(
+                                                    "Property Address",
+                                                    value=json_data.get('property address', ''),
+                                                    key=f"addr_{i}"
+                                                )
+                                                
+                                                edited_data['price'] = st.text_input(
+                                                    "Price",
+                                                    value=json_data.get('price', ''),
+                                                    key=f"price_{i}"
+                                                )
+                                                
+                                                edited_data['currency_of_price'] = st.text_input(
+                                                    "Currency",
+                                                    value=json_data.get('currency of price', ''),
+                                                    key=f"curr_{i}"
+                                                )
+                                                
+                                                edited_data['bedrooms'] = st.text_input(
+                                                    "Number of Bedrooms",
+                                                    value=json_data.get('number of bedrooms', ''),
+                                                    key=f"bed_{i}"
+                                                )
+                                                
+                                                edited_data['bathrooms'] = st.text_input(
+                                                    "Number of Bathrooms",
+                                                    value=json_data.get('number of bathrooms', ''),
+                                                    key=f"bath_{i}"
+                                                )
+                                                
+                                                edited_data['square_feet'] = st.text_input(
+                                                    "Square Feet",
+                                                    value=json_data.get('square feet', ''),
+                                                    key=f"sqft_{i}"
+                                                )
+                                        except json.JSONDecodeError as je:
+                                            st.error(f"Error parsing JSON for URL {url}: {str(je)}")
+                                            st.write("Raw response that caused error:", raw_response)
+                                    else:
+                                        st.error(f"Invalid response format for URL {url}")
+                                        st.write("Raw response:", raw_response)
                                     
                                 except Exception as e:
                                     st.error(f"Error capturing screenshot for URL {url}: {str(e)}")
