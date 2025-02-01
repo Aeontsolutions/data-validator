@@ -1,0 +1,125 @@
+import streamlit as st
+import os
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from PIL import Image
+from io import BytesIO
+import json
+import base64
+from utils.scraper_utils import capture_webpage_screenshot, capture_webpage_screenshot_multiple, image_to_base64
+
+def main():
+    st.title("Webpage Screenshot Capture Tool")
+    
+    # Input method selection
+    input_method = st.radio(
+        "Choose input method:",
+        ["Single URL", "Multiple URLs"]
+    )
+    
+    if input_method == "Single URL":
+        # Single URL input
+        url = st.text_input("Enter webpage URL:")
+        wait_time = st.slider("Page load wait time (seconds)", 5, 30, 10)
+        
+        if st.button("Capture Screenshot"):
+            if url:
+                try:
+                    with st.spinner("Capturing screenshot..."):
+                        screenshot = capture_webpage_screenshot(url, wait_time=wait_time)
+                        # Convert bytes to image for display
+                        image = Image.open(BytesIO(screenshot))
+                        st.image(image, caption="Captured Screenshot", use_container_width=True)
+                        
+                        # Add download button
+                        buffered = BytesIO()
+                        image.save(buffered, format="PNG")
+                        st.download_button(
+                            label="Download Screenshot",
+                            data=buffered.getvalue(),
+                            file_name="screenshot.png",
+                            mime="image/png"
+                        )
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+            else:
+                st.warning("Please enter a URL")
+    
+    else:
+        # Multiple URLs input
+        urls = st.text_area("Enter URLs (one per line):")
+        wait_time = st.slider("Page load wait time (seconds)", 5, 30, 10)
+        output_folder = os.path.join(os.getcwd(), "screenshots")
+        
+        if st.button("Capture Screenshots"):
+            if urls and urls.strip():
+                try:
+                    # Clean and filter URLs
+                    url_list = [url.strip() for url in urls.split('\n') if url.strip() and url.startswith(('http://', 'https://'))]
+                    
+                    if not url_list:
+                        st.warning("Please enter valid URLs (must start with http:// or https://)")
+                        return
+                    
+                    # Create output directory if it doesn't exist
+                    if not os.path.exists(output_folder):
+                        os.makedirs(output_folder)
+                    
+                    # Initialize Chrome options outside the loop
+                    chrome_options = Options()
+                    chrome_options.add_argument("--headless")
+                    chrome_options.add_argument("--no-sandbox")
+                    chrome_options.add_argument("--disable-dev-shm-usage")
+                    chrome_options.add_argument("--disable-gpu")
+                    
+                    with st.spinner(f"Capturing screenshots for {len(url_list)} URLs..."):
+                        output_paths = []
+                        driver = None
+                        try:
+                            driver = webdriver.Chrome(options=chrome_options)
+                            
+                            for i, url in enumerate(url_list):
+                                try:
+                                    # Navigate to URL and capture screenshot
+                                    driver.get(url)
+                                    driver.implicitly_wait(wait_time)
+                                    
+                                    # Create a safe filename
+                                    safe_filename = f"screenshot_{i+1}.png"
+                                    output_path = os.path.join(output_folder, safe_filename)
+                                    
+                                    # Capture and save screenshot
+                                    screenshot = driver.get_screenshot_as_png()
+                                    with open(output_path, 'wb') as f:
+                                        f.write(screenshot)
+                                    output_paths.append(output_path)
+                                    
+                                    # Display screenshot
+                                    image = Image.open(output_path)
+                                    st.image(image, caption=f"Screenshot {i+1}: {url}", use_container_width=True)
+                                    
+                                    # Add download button
+                                    with open(output_path, "rb") as file:
+                                        st.download_button(
+                                            label=f"Download Screenshot {i+1}",
+                                            data=file,
+                                            file_name=safe_filename,
+                                            mime="image/png"
+                                        )
+                                except Exception as e:
+                                    st.error(f"Error capturing screenshot for URL {url}: {str(e)}")
+                                    continue
+                        finally:
+                            if driver:
+                                driver.quit()
+                                
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+            else:
+                st.warning("Please enter at least one URL")
+
+if __name__ == "__main__":
+    main()
