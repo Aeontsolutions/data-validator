@@ -21,7 +21,7 @@ def main():
     chrome_options.add_argument('--disable-gpu')
     chrome_options.add_argument("--disable-extensions")
     chrome_options.add_argument('--remote-debugging-port=9222')
-    chrome_options.binary_location = "/usr/bin/chromium-browser"  # Use Chromium instead of Chrome
+    chrome_options.binary_location = "/usr/bin/chromium"  # Updated binary location
 
     # Initialize Chrome driver without webdriver_manager
     try:
