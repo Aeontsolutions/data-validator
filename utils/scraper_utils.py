@@ -46,19 +46,18 @@ def capture_webpage_screenshot(url, output_path=None, wait_time=10):
         Exception: If there's an error capturing the screenshot
     """
     try:
-        # Configure Chrome options
+        # Configure Chrome options for Linux environment
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
         chrome_options.add_argument('--disable-gpu')
-        chrome_options.add_argument('--disable-software-rasterizer')
-        chrome_options.add_argument('--disable-extensions')
-        chrome_options.binary_location = "/usr/bin/google-chrome"
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument('--remote-debugging-port=9222')
+        chrome_options.binary_location = "/usr/bin/chromium-browser"  # Use Chromium instead of Chrome
 
-        # Initialize the Chrome driver with webdriver_manager
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=chrome_options)
+        # Initialize Chrome driver without webdriver_manager
+        driver = webdriver.Chrome(options=chrome_options)
 
         # Set window size
         driver.set_window_size(1920, 1080)

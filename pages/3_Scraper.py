@@ -13,21 +13,19 @@ from utils.bigquery_utils import create_bigquery_client, add_property_row
 def main():
     st.title("Webpage Screenshot Capture Tool")
     
-    # Set up Chrome options
+    # Set up Chrome options for Linux environment
     chrome_options = Options()
     chrome_options.add_argument('--headless')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
     chrome_options.add_argument('--disable-gpu')
-    # Add these options for running in Streamlit Cloud
-    chrome_options.add_argument('--disable-software-rasterizer')
-    chrome_options.add_argument('--disable-extensions')
-    chrome_options.binary_location = "/usr/bin/google-chrome"  # Specify Chrome binary location
-    
-    # Initialize the Chrome driver with webdriver_manager
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument('--remote-debugging-port=9222')
+    chrome_options.binary_location = "/usr/bin/chromium-browser"  # Use Chromium instead of Chrome
+
+    # Initialize Chrome driver without webdriver_manager
     try:
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=chrome_options)
+        driver = webdriver.Chrome(options=chrome_options)
     except Exception as e:
         st.error(f"Error initializing Chrome driver: {str(e)}")
         return
