@@ -13,13 +13,18 @@ import base64
 import vertexai
 from vertexai.generative_models import GenerativeModel, Part, SafetySetting
 from dotenv import load_dotenv
+from google.oauth2 import service_account
+import google.cloud.aiplatform as aiplatform
 
 load_dotenv()
 
+# Set up credentials from Streamlit secrets
 if not os.path.exists("credentials.json"):
     with open("credentials.json", "w") as f:
         json.dump(json.loads(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"]), f)
 
+# Set the environment variable to point to the credentials file
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.abspath("credentials.json")
 
 def capture_webpage_screenshot(url, output_path=None, wait_time=10):
     """
@@ -135,32 +140,44 @@ def generate(encoded_image):
     Returns:
         dict: JSON response from the model
     """
-    vertexai.init(
-        project=st.secrets.get("PROJECT_ID") or os.getenv('PROJECT_ID'), 
-        location="us-central1",
-        credentials="credentials.json"
-    )
-    
-    model = GenerativeModel("gemini-1.5-pro-002")
-    
-    # Create the image part with proper MIME type
-    image_part = Part.from_data(
-        data=base64.b64decode(encoded_image),
-        mime_type="image/png"
-    )
-    
-    responses = model.generate_content(
-        [image_part, text1],
-        generation_config=generation_config,
-        safety_settings=safety_settings,
-        stream=True,
-    )
-    
-    response_string = ""
-    for response in responses:
-        response_string = response_string + response.text
-    
-    return json.loads(response_string)
+    try:
+        # Create credentials from the service account info
+        credentials_dict = json.loads(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"])
+        credentials = service_account.Credentials.from_service_account_info(
+            credentials_dict
+        )
+        
+        # Initialize Vertex AI with explicit credentials
+        vertexai.init(
+            project=st.secrets.get("PROJECT_ID"),
+            location="us-central1",
+            credentials=credentials
+        )
+        
+        model = GenerativeModel("gemini-1.5-pro-002")
+        
+        # Create the image part with proper MIME type
+        image_part = Part.from_data(
+            data=base64.b64decode(encoded_image),
+            mime_type="image/png"
+        )
+        
+        responses = model.generate_content(
+            [image_part, text1],
+            generation_config=generation_config,
+            safety_settings=safety_settings,
+            stream=True,
+        )
+        
+        response_string = ""
+        for response in responses:
+            response_string = response_string + response.text
+        
+        return json.loads(response_string)
+        
+    except Exception as e:
+        st.error(f"Error in generate function: {str(e)}")
+        raise
 
 text1 = """return the data seen in this image in json format as follows{property description: ,property address: , price: ,currency of price: , number of bedrooms: , number of bathrooms: , square feet: }"""
 

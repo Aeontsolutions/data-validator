@@ -14,6 +14,14 @@ from utils.scraper_utils import capture_webpage_screenshot, capture_webpage_scre
 def main():
     st.title("Webpage Screenshot Capture Tool")
     
+    # Set up credentials from Streamlit secrets
+    if not os.path.exists("credentials.json"):
+        with open("credentials.json", "w") as f:
+            json.dump(json.loads(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"]), f)
+
+    # Set the environment variable to point to the credentials file
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.abspath("credentials.json")
+
     # Input method selection
     input_method = st.radio(
         "Choose input method:",
