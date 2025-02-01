@@ -94,7 +94,6 @@ def main():
                     
                     with st.spinner(f"Capturing screenshots for {len(url_list)} URLs..."):
                         output_paths = []
-                        base64_images = []
                         json_data = []
                         driver = None
                         try:
@@ -118,10 +117,6 @@ def main():
                                     
                                     # Convert to base64
                                     base64_image = image_to_base64(output_path)
-                                    # base64_images.append({
-                                    #     'url': url,
-                                    #     'base64': base64_image
-                                    # })
                                     
                                     # Generate JSON data
                                     json_data.append(generate(base64_image))
