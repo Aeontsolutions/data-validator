@@ -6,6 +6,7 @@ from utils.bigquery_utils import summary_query, fetch_data_all, create_bigquery_
 from dotenv import load_dotenv
 import pandas as pd
 import pydeck as pdk
+import plotly.express as px
 
 # Page configuration
 st.set_page_config(
@@ -64,7 +65,7 @@ load_dotenv()
 client = create_bigquery_client()
 
 # Header
-st.title("📍 Location Intelligence Dashboard")
+st.title("📍 Training Data Dashboard")
 st.markdown("---")
 
 # Summary Dashboard in columns
@@ -197,6 +198,278 @@ deck = pdk.Deck(
 # Display the map
 st.pydeck_chart(deck)
 
-# Add footer with timestamp
+# Data Distribution Analysis
+st.markdown("---")
+st.subheader("📊 Data Distribution Analysis")
+
+# Create tabs for each predictor
+tabs = st.tabs(["Rooms", "Bathrooms", "Square Footage", "Property Type", "Correlations"])
+
+# Rooms Tab
+with tabs[0]:
+    st.markdown("### Room Analysis")
+    room_col1, room_col2 = st.columns(2)
+    
+    with room_col1:
+        # Univariate distribution of rooms
+        fig_rooms_hist = px.histogram(
+            filtered_df,
+            x='rooms',
+            title='Distribution of Rooms',
+            template='plotly_white'
+        )
+        fig_rooms_hist.update_layout(showlegend=False)
+        st.plotly_chart(fig_rooms_hist, use_container_width=True, key='rooms_hist')
+        
+    with room_col2:
+        # Box plot of rooms
+        fig_rooms_box = px.box(
+            filtered_df,
+            y='rooms',
+            title='Box Plot of Rooms',
+            template='plotly_white'
+        )
+        st.plotly_chart(fig_rooms_box, use_container_width=True, key='rooms_box')
+    
+    # Rooms vs Price
+    st.markdown("### Rooms vs Price")
+    room_price_col1, room_price_col2 = st.columns(2)
+    
+    with room_price_col1:
+        # Scatter plot
+        fig_rooms_price = px.scatter(
+            filtered_df,
+            x='rooms',
+            y='price',
+            title='Price vs Rooms',
+            template='plotly_white',
+            trendline="ols"
+        )
+        st.plotly_chart(fig_rooms_price, use_container_width=True, key='rooms_price_scatter')
+    
+    with room_price_col2:
+        # Box plot of price by rooms
+        fig_price_by_rooms = px.box(
+            filtered_df,
+            x='rooms',
+            y='price',
+            title='Price Distribution by Number of Rooms',
+            template='plotly_white'
+        )
+        st.plotly_chart(fig_price_by_rooms, use_container_width=True, key='rooms_price_box')
+
+# Bathrooms Tab
+with tabs[1]:
+    st.markdown("### Bathroom Analysis")
+    bath_col1, bath_col2 = st.columns(2)
+    
+    with bath_col1:
+        # Univariate distribution of bathrooms
+        fig_bath_hist = px.histogram(
+            filtered_df,
+            x='bathroom',
+            title='Distribution of Bathrooms',
+            template='plotly_white'
+        )
+        fig_bath_hist.update_layout(showlegend=False)
+        st.plotly_chart(fig_bath_hist, use_container_width=True, key='bath_hist')
+        
+    with bath_col2:
+        # Box plot of bathrooms
+        fig_bath_box = px.box(
+            filtered_df,
+            y='bathroom',
+            title='Box Plot of Bathrooms',
+            template='plotly_white'
+        )
+        st.plotly_chart(fig_bath_box, use_container_width=True, key='bath_box')
+    
+    # Bathrooms vs Price
+    st.markdown("### Bathrooms vs Price")
+    bath_price_col1, bath_price_col2 = st.columns(2)
+    
+    with bath_price_col1:
+        # Scatter plot
+        fig_bath_price = px.scatter(
+            filtered_df,
+            x='bathroom',
+            y='price',
+            title='Price vs Bathrooms',
+            template='plotly_white',
+            trendline="ols"
+        )
+        st.plotly_chart(fig_bath_price, use_container_width=True, key='bath_price_scatter')
+    
+    with bath_price_col2:
+        # Box plot of price by bathrooms
+        fig_price_by_bath = px.box(
+            filtered_df,
+            x='bathroom',
+            y='price',
+            title='Price Distribution by Number of Bathrooms',
+            template='plotly_white'
+        )
+        st.plotly_chart(fig_price_by_bath, use_container_width=True, key='bath_price_box')
+
+# Square Footage Tab
+with tabs[2]:
+    st.markdown("### Square Footage Analysis")
+    sqft_col1, sqft_col2 = st.columns(2)
+    
+    with sqft_col1:
+        # Univariate distribution of sqft
+        fig_sqft_hist = px.histogram(
+            filtered_df,
+            x='sqft',
+            title='Distribution of Square Footage',
+            template='plotly_white'
+        )
+        fig_sqft_hist.update_layout(showlegend=False)
+        st.plotly_chart(fig_sqft_hist, use_container_width=True, key='sqft_hist')
+        
+    with sqft_col2:
+        # Box plot of sqft
+        fig_sqft_box = px.box(
+            filtered_df,
+            y='sqft',
+            title='Box Plot of Square Footage',
+            template='plotly_white'
+        )
+        st.plotly_chart(fig_sqft_box, use_container_width=True, key='sqft_box')
+    
+    # Square Footage vs Price
+    st.markdown("### Square Footage vs Price")
+    sqft_price_col1, sqft_price_col2 = st.columns(2)
+    
+    with sqft_price_col1:
+        # Scatter plot
+        fig_sqft_price = px.scatter(
+            filtered_df,
+            x='sqft',
+            y='price',
+            title='Price vs Square Footage',
+            template='plotly_white',
+            trendline="ols"
+        )
+        st.plotly_chart(fig_sqft_price, use_container_width=True, key='sqft_price_scatter')
+    
+    with sqft_price_col2:
+        # Box plot of price by property type
+        fig_price_by_type = px.box(
+            filtered_df,
+            x='property_type',
+            y='price',
+            title='Price Distribution by Property Type',
+            template='plotly_white'
+        )
+        fig_price_by_type.update_xaxes(tickangle=45)
+        st.plotly_chart(fig_price_by_type, use_container_width=True, key='sqft_price_box')
+
+# Property Type Tab
+with tabs[3]:
+    st.markdown("### Property Type Analysis")
+    prop_col1, prop_col2 = st.columns(2)
+    
+    with prop_col1:
+        # Count of properties by type
+        fig_prop_count = px.bar(
+            filtered_df['property_type'].value_counts().reset_index(),
+            x='property_type',
+            y='count',
+            title='Distribution of Property Types',
+            template='plotly_white',
+            labels={'property_type': 'Property Type', 'count': 'Count'}
+        )
+        fig_prop_count.update_xaxes(tickangle=45)
+        st.plotly_chart(fig_prop_count, use_container_width=True, key='prop_count')
+        
+    with prop_col2:
+        # Percentage distribution
+        fig_prop_pie = px.pie(
+            filtered_df['property_type'].value_counts().reset_index(),
+            values='count',
+            names='property_type',
+            title='Property Type Distribution (%)',
+            template='plotly_white'
+        )
+        st.plotly_chart(fig_prop_pie, use_container_width=True, key="property_type_pie")
+    
+    # Property Type vs Price
+    st.markdown("### Property Type vs Price")
+    prop_price_col1, prop_price_col2 = st.columns(2)
+    
+    with prop_price_col1:
+        # Box plot of price by property type
+        fig_price_by_type = px.box(
+            filtered_df,
+            x='property_type',
+            y='price',
+            title='Price Distribution by Property Type',
+            template='plotly_white'
+        )
+        fig_price_by_type.update_xaxes(tickangle=45)
+        st.plotly_chart(fig_price_by_type, use_container_width=True, key='prop_price_box')
+    
+    with prop_price_col2:
+        # Average price by property type
+        avg_price_by_type = filtered_df.groupby('property_type')['price'].mean().reset_index()
+        fig_avg_price = px.bar(
+            avg_price_by_type,
+            x='property_type',
+            y='price',
+            title='Average Price by Property Type',
+            template='plotly_white',
+            labels={'property_type': 'Property Type', 'price': 'Average Price'}
+        )
+        fig_avg_price.update_xaxes(tickangle=45)
+        st.plotly_chart(fig_avg_price, use_container_width=True, key='prop_avg_price')
+    
+    # Additional property type relationships
+    st.markdown("### Property Type Relationships")
+    prop_rel_col1, prop_rel_col2 = st.columns(2)
+    
+    with prop_rel_col1:
+        # Average square footage by property type
+        avg_sqft_by_type = filtered_df.groupby('property_type')['sqft'].mean().reset_index()
+        fig_avg_sqft = px.bar(
+            avg_sqft_by_type,
+            x='property_type',
+            y='sqft',
+            title='Average Square Footage by Property Type',
+            template='plotly_white',
+            labels={'property_type': 'Property Type', 'sqft': 'Average Square Footage'}
+        )
+        fig_avg_sqft.update_xaxes(tickangle=45)
+        st.plotly_chart(fig_avg_sqft, use_container_width=True, key='prop_avg_sqft')
+    
+    with prop_rel_col2:
+        # Average rooms by property type
+        avg_rooms_by_type = filtered_df.groupby('property_type')['rooms'].mean().reset_index()
+        fig_avg_rooms = px.bar(
+            avg_rooms_by_type,
+            x='property_type',
+            y='rooms',
+            title='Average Number of Rooms by Property Type',
+            template='plotly_white',
+            labels={'property_type': 'Property Type', 'rooms': 'Average Rooms'}
+        )
+        fig_avg_rooms.update_xaxes(tickangle=45)
+        st.plotly_chart(fig_avg_rooms, use_container_width=True, key='prop_avg_rooms')
+
+# Correlations Tab
+with tabs[4]:
+    st.markdown("### Feature Correlations")
+    numeric_columns = ['price', 'rooms', 'bathroom', 'sqft']
+    correlation_matrix = filtered_df[numeric_columns].corr()
+    fig_corr = px.imshow(
+        correlation_matrix,
+        title='Correlation Heatmap',
+        template='plotly_white',
+        color_continuous_scale='RdBu',
+        aspect='auto'
+    )
+    st.plotly_chart(fig_corr, use_container_width=True, key='correlation_heatmap')
+
+# Footer
 st.markdown("---")
 st.markdown(f"<div style='text-align: center; color: #666;'>Last updated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}</div>", unsafe_allow_html=True)
