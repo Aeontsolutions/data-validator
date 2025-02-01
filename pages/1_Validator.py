@@ -46,17 +46,27 @@ user = st.text_input("Validator Name:", value=st.session_state["name"], placehol
 # Create BigQuery client
 client = create_bigquery_client()
 
+# Cache the full property data
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def get_cached_data():
+    return fetch_data(client)
+
+# Initialize session state for tracking available properties
+if 'available_property_ids' not in st.session_state:
+    df = get_cached_data()
+    st.session_state.available_property_ids = df['property_id'].tolist()
+    st.session_state.properties_data = df
+
 # Display rows
-df = fetch_data(client)
-if not df.empty:
+if st.session_state.available_property_ids:
     # Create three columns with custom ratios
-    col1, col2 = st.columns([2, 3])  # Adjust ratio for better space usage
+    col1, col2 = st.columns([2, 3])
     
     with col1:
         st.markdown("### Properties to Validate")
         selected_property = st.selectbox(
             "Select property to validate:",
-            df["property_id"],
+            st.session_state.available_property_ids,
             help="Choose a property to validate",
             index=None,
             placeholder="Choose a property..."
@@ -65,7 +75,9 @@ if not df.empty:
         # Display individual inputs for the selected property
         if selected_property:
             st.markdown("### Property Details")
-            selected_row = df[df['property_id'] == selected_property].iloc[0]
+            selected_row = st.session_state.properties_data[
+                st.session_state.properties_data['property_id'] == selected_property
+            ].iloc[0]
             
             # Create inputs for each column (except property_id)            
             price = st.number_input(
@@ -162,7 +174,9 @@ if not df.empty:
         # Property Viewer Section
         st.markdown("### Property Viewer")
         if selected_property:
-            selected_url = df[df['property_id'] == selected_property]['listing_urls'].iloc[0]
+            selected_url = st.session_state.properties_data[
+                st.session_state.properties_data['property_id'] == selected_property
+            ]['listing_urls'].iloc[0]
             if selected_url:
                 iframe_html = f'<iframe src="{selected_url}" width="100%" height="800" frameborder="0"></iframe>'
                 st.components.v1.html(iframe_html, height=800)
@@ -180,20 +194,27 @@ if not df.empty:
                 with col1:
                     if st.button("✓ Validate Property", type="primary"):
                         update_validation(client, [selected_property], user)
-                        st.success("Property validated!")
+                        # Remove the validated property from the list
+                        st.session_state.available_property_ids.remove(selected_property)
+                        st.rerun()
                 with col2:
                     if st.button("Skip Property", type="secondary"):
-                        st.info("Property skipped")
+                        # Move the skipped property to the end of the list
+                        st.session_state.available_property_ids.remove(selected_property)
+                        st.session_state.available_property_ids.append(selected_property)
+                        st.rerun()
                 with col3:
                     if st.button("Delete Property", type="secondary"):
-                        delete_property(client, selected_property)
-                        st.info("Property deleted")
+                        if delete_property(client, selected_property):
+                            st.session_state.available_property_ids.remove(selected_property)
+                            st.rerun()
         
         # Show validation stats
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### Validation Progress")
-    total = len(df)
-    validated = len(df[df['validated'] == True]) if 'validated' in df.columns else 0
+    total = len(st.session_state.properties_data)
+    remaining = len(st.session_state.available_property_ids)
+    validated = total - remaining
     st.progress(validated/total if total > 0 else 0)
     st.text(f"{validated}/{total} properties validated")
 
