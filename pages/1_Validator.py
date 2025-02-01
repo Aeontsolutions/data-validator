@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 import streamlit.components.v1 as components
-from utils.bigquery_utils import fetch_data, update_validation, create_bigquery_client
+from utils.bigquery_utils import fetch_data, update_validation, create_bigquery_client, delete_property
 import pandas as pd
 import pydeck as pdk
 from dotenv import load_dotenv
@@ -176,7 +176,7 @@ if not df.empty:
             
             # Only show validate button if property is selected and name is entered
             if selected_property and user:
-                col1, col2 = st.columns(2)
+                col1, col2, col3 = st.columns(3)
                 with col1:
                     if st.button("✓ Validate Property", type="primary"):
                         update_validation(client, [selected_property], user)
@@ -184,6 +184,10 @@ if not df.empty:
                 with col2:
                     if st.button("Skip Property", type="secondary"):
                         st.info("Property skipped")
+                with col3:
+                    if st.button("Delete Property", type="secondary"):
+                        delete_property(client, selected_property)
+                        st.info("Property deleted")
         
         # Show validation stats
     st.markdown("<br>", unsafe_allow_html=True)

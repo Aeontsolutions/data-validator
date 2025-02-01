@@ -107,3 +107,22 @@ def summary_query(client):
         FROM `{project_id}.{dataset_id}.{table_id}`
     """
     return client.query(query).to_dataframe()
+
+def delete_property(client, property_id):
+    """
+    Delete a property from the BigQuery table
+    """
+    project_id = st.secrets.get("PROJECT_ID") or os.getenv('PROJECT_ID')
+    dataset_id = st.secrets.get("DATASET_ID") or os.getenv('DATASET_ID')
+    table_id = st.secrets.get("TABLE_ID") or os.getenv('TABLE_ID')
+    
+    query = f"""
+    DELETE FROM `{project_id}.{dataset_id}.{table_id}`
+    WHERE property_id = '{property_id}'
+    """
+    try:
+        client.query(query)
+        return True
+    except Exception as e:
+        print(f"Error deleting property: {str(e)}")
+        return False
