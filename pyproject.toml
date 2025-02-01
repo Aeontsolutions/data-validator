@@ -24,6 +24,9 @@ streamlit-folium = "^0.24.0"
 pydeck = "^0.9.1"
 plotly = "^6.0.0"
 statsmodels = "^0.14.4"
+selenium = "^4.28.1"
+pillow = "^11.1.0"
+google-cloud-aiplatform = "^1.79.0"
 
 
 [build-system]
