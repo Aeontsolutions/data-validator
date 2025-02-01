@@ -97,7 +97,8 @@ if st.session_state['authentication_status']:
         st.markdown('<p class="sub-header">🚀 Quick Actions</p>', unsafe_allow_html=True)
         st.page_link(label="Explore Training Data", page="pages/2_Dashboard.py")
         st.page_link(label="Validate Training Data", page="pages/1_Validator.py")
-    
+        st.page_link(label="Scrape Training Data", page="pages/3_Scraper.py")
+        
     # Feature highlights
     st.markdown('<p class="sub-header">✨ Key Features</p>', unsafe_allow_html=True)
     col1, col2, col3 = st.columns(3)
