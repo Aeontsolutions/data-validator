@@ -11,6 +11,11 @@ from utils.scraper_utils import capture_webpage_screenshot, image_to_base64, gen
 from utils.bigquery_utils import create_bigquery_client, add_property_row
 
 def main():
+    # Add authentication check at the start
+    if 'authentication_status' not in st.session_state or not st.session_state['authentication_status']:
+        st.error('Please login to continue')
+        st.stop()
+    
     st.title("Webpage Screenshot Capture Tool")
     
     # Set up Chrome options for Linux environment
