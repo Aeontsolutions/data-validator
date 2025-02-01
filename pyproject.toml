@@ -27,6 +27,7 @@ statsmodels = "^0.14.4"
 selenium = "^4.28.1"
 pillow = "^11.1.0"
 google-cloud-aiplatform = "^1.79.0"
+webdriver-manager = "^4.0.2"
 
 
 [build-system]

@@ -15,6 +15,7 @@ from vertexai.generative_models import GenerativeModel, Part, SafetySetting
 from dotenv import load_dotenv
 from google.oauth2 import service_account
 import google.cloud.aiplatform as aiplatform
+from webdriver_manager.chrome import ChromeDriverManager
 
 load_dotenv()
 
@@ -47,24 +48,26 @@ def capture_webpage_screenshot(url, output_path=None, wait_time=10):
     try:
         # Configure Chrome options
         chrome_options = Options()
-        chrome_options.add_argument('--headless')  # Run in headless mode
+        chrome_options.add_argument('--headless')
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
-        chrome_options.add_argument('--start-maximized')
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--disable-software-rasterizer')
+        chrome_options.add_argument('--disable-extensions')
+        chrome_options.binary_location = "/usr/bin/google-chrome"
 
-        # Initialize the Chrome driver
-        driver = webdriver.Chrome(options=chrome_options)
+        # Initialize the Chrome driver with webdriver_manager
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
 
-        # Set window size (adjust as needed)
+        # Set window size
         driver.set_window_size(1920, 1080)
 
         # Navigate to the URL
         driver.get(url)
 
         # Wait for the page to load
-        WebDriverWait(driver, wait_time).until(
-            EC.presence_of_all_elements_located(('tag name', 'body'))
-        )
+        driver.implicitly_wait(wait_time)
 
         # Get page dimensions and update window size
         page_width = driver.execute_script('return document.body.scrollWidth')

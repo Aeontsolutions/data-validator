@@ -2,6 +2,8 @@ import streamlit as st
 import os
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 from PIL import Image
 from io import BytesIO
 import json
@@ -11,6 +13,25 @@ from utils.bigquery_utils import create_bigquery_client, add_property_row
 def main():
     st.title("Webpage Screenshot Capture Tool")
     
+    # Set up Chrome options
+    chrome_options = Options()
+    chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--disable-dev-shm-usage')
+    chrome_options.add_argument('--disable-gpu')
+    # Add these options for running in Streamlit Cloud
+    chrome_options.add_argument('--disable-software-rasterizer')
+    chrome_options.add_argument('--disable-extensions')
+    chrome_options.binary_location = "/usr/bin/google-chrome"  # Specify Chrome binary location
+    
+    # Initialize the Chrome driver with webdriver_manager
+    try:
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+    except Exception as e:
+        st.error(f"Error initializing Chrome driver: {str(e)}")
+        return
+
     # Set up credentials from Streamlit secrets
     if not os.path.exists("credentials.json"):
         with open("credentials.json", "w") as f:
@@ -152,20 +173,10 @@ def main():
                     if not os.path.exists(output_folder):
                         os.makedirs(output_folder)
                     
-                    # Initialize Chrome options outside the loop
-                    chrome_options = Options()
-                    chrome_options.add_argument("--headless")
-                    chrome_options.add_argument("--no-sandbox")
-                    chrome_options.add_argument("--disable-dev-shm-usage")
-                    chrome_options.add_argument("--disable-gpu")
-                    
                     with st.spinner(f"Capturing screenshots for {len(url_list)} URLs..."):
                         output_paths = []
                         json_data_list = []
-                        driver = None
                         try:
-                            driver = webdriver.Chrome(options=chrome_options)
-                            
                             for i, url in enumerate(url_list):
                                 try:
                                     driver.get(url)
@@ -285,8 +296,7 @@ def main():
                                     st.error(f"Error capturing screenshot for URL {url}: {str(e)}")
                                     continue
                         finally:
-                            if driver:
-                                driver.quit()
+                            driver.quit()
                                 
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
