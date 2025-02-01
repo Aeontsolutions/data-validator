@@ -190,7 +190,7 @@ def main():
                                             # Display image in left column
                                             with col1:
                                                 image = Image.open(output_path)
-                                                st.image(image, caption=f"Screenshot {i+1}: {url}", use_column_width=True)
+                                                st.image(image, caption=f"Screenshot {i+1}: {url}", use_container_width=True)
                                             
                                             # Display editable fields in right column
                                             with col2:
