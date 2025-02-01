@@ -9,7 +9,7 @@ from PIL import Image
 from io import BytesIO
 import json
 import base64
-from utils.scraper_utils import capture_webpage_screenshot, capture_webpage_screenshot_multiple, image_to_base64
+from utils.scraper_utils import capture_webpage_screenshot, capture_webpage_screenshot_multiple, image_to_base64, generate
 
 def main():
     st.title("Webpage Screenshot Capture Tool")
@@ -32,17 +32,26 @@ def main():
                         screenshot = capture_webpage_screenshot(url, wait_time=wait_time)
                         # Convert bytes to image for display
                         image = Image.open(BytesIO(screenshot))
+                        
+                        # Save temporarily to convert to base64
+                        temp_path = os.path.join(os.getcwd(), "screenshots", "temp.png")
+                        os.makedirs(os.path.dirname(temp_path), exist_ok=True)
+                        image.save(temp_path, format="PNG")
+                        
+                        # Convert to base64
+                        base64_image = image_to_base64(temp_path)
+                        
+                        # Display the image
                         st.image(image, caption="Captured Screenshot", use_container_width=True)
                         
-                        # Add download button
-                        buffered = BytesIO()
-                        image.save(buffered, format="PNG")
-                        st.download_button(
-                            label="Download Screenshot",
-                            data=buffered.getvalue(),
-                            file_name="screenshot.png",
-                            mime="image/png"
-                        )
+                        # Generate JSON data
+                        json_data = generate(base64_image)
+                        st.write(json_data)
+                        
+                        # Clean up temporary file
+                        if os.path.exists(temp_path):
+                            os.remove(temp_path)
+                            
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
             else:
@@ -77,6 +86,8 @@ def main():
                     
                     with st.spinner(f"Capturing screenshots for {len(url_list)} URLs..."):
                         output_paths = []
+                        base64_images = []
+                        json_data = []
                         driver = None
                         try:
                             driver = webdriver.Chrome(options=chrome_options)
@@ -97,18 +108,23 @@ def main():
                                         f.write(screenshot)
                                     output_paths.append(output_path)
                                     
+                                    # Convert to base64
+                                    base64_image = image_to_base64(output_path)
+                                    # base64_images.append({
+                                    #     'url': url,
+                                    #     'base64': base64_image
+                                    # })
+                                    
+                                    # Generate JSON data
+                                    json_data.append(generate(base64_image))
+                                    
                                     # Display screenshot
                                     image = Image.open(output_path)
                                     st.image(image, caption=f"Screenshot {i+1}: {url}", use_container_width=True)
                                     
-                                    # Add download button
-                                    with open(output_path, "rb") as file:
-                                        st.download_button(
-                                            label=f"Download Screenshot {i+1}",
-                                            data=file,
-                                            file_name=safe_filename,
-                                            mime="image/png"
-                                        )
+                                    # Display JSON data
+                                    st.write(json_data[i])
+                                    
                                 except Exception as e:
                                     st.error(f"Error capturing screenshot for URL {url}: {str(e)}")
                                     continue

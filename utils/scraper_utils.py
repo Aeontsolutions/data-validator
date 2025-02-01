@@ -1,3 +1,4 @@
+import streamlit as st
 import os
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -8,6 +9,17 @@ from PIL import Image
 from io import BytesIO
 import json
 import base64
+import base64
+import vertexai
+from vertexai.generative_models import GenerativeModel, Part, SafetySetting
+from dotenv import load_dotenv
+
+load_dotenv()
+
+if not os.path.exists("credentials.json"):
+    with open("credentials.json", "w") as f:
+        json.dump(json.loads(st.secrets["GOOGLE_APPLICATION_CREDENTIALS"]), f)
+
 
 def capture_webpage_screenshot(url, output_path=None, wait_time=10):
     """
@@ -112,3 +124,69 @@ def image_to_base64(image_path):
     encoded_image = base64.b64encode(buffered.getvalue()).decode('utf-8')
 
     return encoded_image
+
+def generate(encoded_image):
+    """
+    Generate JSON data from an image using Vertex AI.
+    
+    Args:
+        encoded_image (str): Base64 encoded image string
+    
+    Returns:
+        dict: JSON response from the model
+    """
+    vertexai.init(
+        project=st.secrets.get("PROJECT_ID") or os.getenv('PROJECT_ID'), 
+        location="us-central1",
+        credentials="credentials.json"
+    )
+    
+    model = GenerativeModel("gemini-1.5-pro-002")
+    
+    # Create the image part with proper MIME type
+    image_part = Part.from_data(
+        data=base64.b64decode(encoded_image),
+        mime_type="image/png"
+    )
+    
+    responses = model.generate_content(
+        [image_part, text1],
+        generation_config=generation_config,
+        safety_settings=safety_settings,
+        stream=True,
+    )
+    
+    response_string = ""
+    for response in responses:
+        response_string = response_string + response.text
+    
+    return json.loads(response_string)
+
+text1 = """return the data seen in this image in json format as follows{property description: ,property address: , price: ,currency of price: , number of bedrooms: , number of bathrooms: , square feet: }"""
+
+generation_config = {
+    "max_output_tokens": 8192,
+    "temperature": 1,
+    "top_p": 0.95,
+    "response_mime_type": "application/json",
+    "response_schema": {"type":"OBJECT","properties":{"response":{"type":"STRING"}}},
+}
+
+safety_settings = [
+    SafetySetting(
+        category=SafetySetting.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+        threshold=SafetySetting.HarmBlockThreshold.OFF
+    ),
+    SafetySetting(
+        category=SafetySetting.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+        threshold=SafetySetting.HarmBlockThreshold.OFF
+    ),
+    SafetySetting(
+        category=SafetySetting.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+        threshold=SafetySetting.HarmBlockThreshold.OFF
+    ),
+    SafetySetting(
+        category=SafetySetting.HarmCategory.HARM_CATEGORY_HARASSMENT,
+        threshold=SafetySetting.HarmBlockThreshold.OFF
+    ),
+]
