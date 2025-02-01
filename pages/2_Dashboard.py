@@ -108,7 +108,7 @@ df = fetch_data_all(client)
 
 # Add filters in columns
 st.markdown("### 🔍 Filters")
-filter_col1, filter_col2, filter_col3 = st.columns(3)
+filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
 
 with filter_col1:
     # Property type filter
@@ -138,10 +138,27 @@ with filter_col3:
         value=(min_rooms, max_rooms)
     )
 
+with filter_col4:
+    # Square footage filter
+    min_sqft = int(df['sqft'].min())
+    max_sqft = int(df['sqft'].max())
+    sqft_range = st.slider(
+        'Square Footage',
+        min_value=min_sqft,
+        max_value=max_sqft,
+        value=(min_sqft, max_sqft)
+    )
+    
+# Filter out None values and then sort
+communities = ['All'] + sorted([x for x in df['community'].unique() if x is not None])
+selected_community = st.selectbox('Community', communities)
+
 # Apply filters
 filtered_df = df.copy()
 if selected_type != 'All':
     filtered_df = filtered_df[filtered_df['property_type'] == selected_type]
+if selected_community != 'All':
+    filtered_df = filtered_df[filtered_df['community'] == selected_community]
 filtered_df = filtered_df[
     (filtered_df['price'] >= price_range[0]) &
     (filtered_df['price'] <= price_range[1]) &
@@ -167,7 +184,7 @@ filtered_df['tooltip'] = filtered_df.apply(lambda row: f"Type: {row['property_ty
 view_state = pdk.ViewState(
     latitude=center_lat,
     longitude=center_lon,
-    zoom=11,
+    zoom=7,
     pitch=0
 )
 
@@ -196,17 +213,36 @@ deck = pdk.Deck(
 )
 
 # Display the map
-st.pydeck_chart(deck)
+st.pydeck_chart(deck, use_container_width=True)
 
 # Data Distribution Analysis
 st.markdown("---")
 st.subheader("📊 Data Distribution Analysis")
 
 # Create tabs for each predictor
-tabs = st.tabs(["Rooms", "Bathrooms", "Square Footage", "Property Type", "Correlations"])
+tabs = st.tabs(["Communities", "Rooms", "Bathrooms", "Square Footage", "Property Type", "Correlations"])
+
+# Communities Tab
+with tabs[0]:
+    st.markdown("### Community Analysis")
+    col1, col2 = st.columns(2)
+    with col1:
+        # table of communities
+        communities = filtered_df['community'].value_counts().reset_index()
+        st.dataframe(communities, use_container_width=True, hide_index=True)
+    with col2:
+        # column chart of communities   
+        fig_communities = px.bar(
+            communities,
+            x='community',
+            y='count',
+            title='Community Distribution',
+            template='plotly_white'
+        )
+        st.plotly_chart(fig_communities, use_container_width=True, key='communities_chart')
 
 # Rooms Tab
-with tabs[0]:
+with tabs[1]:
     st.markdown("### Room Analysis")
     room_col1, room_col2 = st.columns(2)
     
@@ -259,7 +295,7 @@ with tabs[0]:
         st.plotly_chart(fig_price_by_rooms, use_container_width=True, key='rooms_price_box')
 
 # Bathrooms Tab
-with tabs[1]:
+with tabs[2]:
     st.markdown("### Bathroom Analysis")
     bath_col1, bath_col2 = st.columns(2)
     
@@ -312,7 +348,7 @@ with tabs[1]:
         st.plotly_chart(fig_price_by_bath, use_container_width=True, key='bath_price_box')
 
 # Square Footage Tab
-with tabs[2]:
+with tabs[3]:
     st.markdown("### Square Footage Analysis")
     sqft_col1, sqft_col2 = st.columns(2)
     
@@ -366,7 +402,7 @@ with tabs[2]:
         st.plotly_chart(fig_price_by_type, use_container_width=True, key='sqft_price_box')
 
 # Property Type Tab
-with tabs[3]:
+with tabs[4]:
     st.markdown("### Property Type Analysis")
     prop_col1, prop_col2 = st.columns(2)
     
@@ -457,7 +493,7 @@ with tabs[3]:
         st.plotly_chart(fig_avg_rooms, use_container_width=True, key='prop_avg_rooms')
 
 # Correlations Tab
-with tabs[4]:
+with tabs[5]:
     st.markdown("### Feature Correlations")
     numeric_columns = ['price', 'rooms', 'bathroom', 'sqft']
     correlation_matrix = filtered_df[numeric_columns].corr()
