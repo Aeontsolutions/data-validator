@@ -6,6 +6,7 @@ from PIL import Image
 from io import BytesIO
 import json
 from utils.scraper_utils import capture_webpage_screenshot, image_to_base64, generate
+from utils.bigquery_utils import create_bigquery_client, add_property_row
 
 def main():
     st.title("Webpage Screenshot Capture Tool")
@@ -114,6 +115,14 @@ def main():
                                 "Square Feet",
                                 value=json_data.get('square feet', '')
                             )
+                            
+                            # Add submit button
+                            if st.button("Save Property Data"):
+                                client = create_bigquery_client()
+                                if add_property_row(client, edited_data, url):
+                                    st.success("Property data saved successfully!")
+                                else:
+                                    st.error("Failed to save property data")
                         
                         if os.path.exists(temp_path):
                             os.remove(temp_path)
@@ -257,6 +266,14 @@ def main():
                                                     value=json_data.get('square feet', ''),
                                                     key=f"sqft_{i}"
                                                 )
+                                                
+                                                # Add submit button for each property
+                                                if st.button("Save Property Data", key=f"save_{i}"):
+                                                    client = create_bigquery_client()
+                                                    if add_property_row(client, edited_data, url):
+                                                        st.success("Property data saved successfully!")
+                                                    else:
+                                                        st.error("Failed to save property data")
                                         except json.JSONDecodeError as je:
                                             st.error(f"Error parsing JSON for URL {url}: {str(je)}")
                                             st.write("Raw response that caused error:", raw_response)
