@@ -225,14 +225,30 @@ tabs = st.tabs(["Communities", "Rooms", "Bathrooms", "Square Footage", "Property
 # Communities Tab
 with tabs[0]:
     st.markdown("### Community Analysis")
+    # Use os.path to construct the correct file path
+    current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    file_path = os.path.join(current_dir, 'resources', 'jamaican_communities_geocoded.csv')
     col1, col2 = st.columns(2)
     with col1:
-        # table of communities
+        # table of communities in training data
         communities = filtered_df['community'].value_counts().reset_index()
+        communities_df = pd.read_csv(file_path)
+        communities_df.columns = communities_df.columns.str.lower()
         st.dataframe(communities, use_container_width=True, hide_index=True)
         
         property_types_by_community = filtered_df.groupby(['community', 'property_type']).size().reset_index(name='count')
         st.dataframe(property_types_by_community.pivot(index='community', columns='property_type', values='count').fillna(0).reset_index(), use_container_width=True)
+        
+        # Find communities that are in the authoritative list but missing from training data
+        # Normalize strings by converting to lowercase and stripping whitespace
+        auth_communities = {str(x).lower().strip() for x in communities_df['community'].unique() if pd.notna(x)}
+        training_communities = {str(x).lower().strip() for x in filtered_df['community'].unique() if pd.notna(x)}
+        missing_from_training = auth_communities - training_communities
+        
+        st.markdown("### Communities missing from training data")
+        st.markdown(f"Found {len(missing_from_training)} communities in the authoritative list that are not in the training data:")
+        missing_df = pd.DataFrame(sorted(missing_from_training), columns=['Missing Communities'])
+        st.dataframe(missing_df, use_container_width=True, hide_index=True)
         
     with col2:
         # column chart of communities   
@@ -246,7 +262,6 @@ with tabs[0]:
         st.plotly_chart(fig_communities, use_container_width=True, key='communities_chart')
         
         # Bar chart of Number of property types by community
-    
         property_types_by_community = filtered_df.groupby(['community', 'property_type']).size().reset_index(name='count')
         fig_property_types = px.bar(
             property_types_by_community,
@@ -258,9 +273,6 @@ with tabs[0]:
             barmode='stack'
         )
         st.plotly_chart(fig_property_types, use_container_width=True, key='property_types_chart')
-        
-        
-    
 
 # Rooms Tab
 with tabs[1]:
