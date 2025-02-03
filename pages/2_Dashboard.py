@@ -230,6 +230,10 @@ with tabs[0]:
         # table of communities
         communities = filtered_df['community'].value_counts().reset_index()
         st.dataframe(communities, use_container_width=True, hide_index=True)
+        
+        property_types_by_community = filtered_df.groupby(['community', 'property_type']).size().reset_index(name='count')
+        st.dataframe(property_types_by_community.pivot(index='community', columns='property_type', values='count').fillna(0).reset_index(), use_container_width=True)
+        
     with col2:
         # column chart of communities   
         fig_communities = px.bar(
@@ -240,6 +244,23 @@ with tabs[0]:
             template='plotly_white'
         )
         st.plotly_chart(fig_communities, use_container_width=True, key='communities_chart')
+        
+        # Bar chart of Number of property types by community
+    
+        property_types_by_community = filtered_df.groupby(['community', 'property_type']).size().reset_index(name='count')
+        fig_property_types = px.bar(
+            property_types_by_community,
+            x='community',
+            y='count',
+            color='property_type',
+            title='Number of Property Types by Community',
+            template='plotly_white',
+            barmode='stack'
+        )
+        st.plotly_chart(fig_property_types, use_container_width=True, key='property_types_chart')
+        
+        
+    
 
 # Rooms Tab
 with tabs[1]:
