@@ -6,6 +6,8 @@ import json
 from utils.scraper_utils import search_properties, capture_screenshots_async
 from utils.bigquery_utils import create_bigquery_client, create_bigquery_table, insert_into_bigquery
 import asyncio
+from zipfile import ZipFile
+import tempfile
 
 def main():
     # Add a button in the sidebar to reset session state
@@ -82,44 +84,47 @@ def main():
                         
                     try:
                         with st.spinner("Capturing screenshots and processing AI responses..."):
-                            screenshots = asyncio.run(capture_screenshots_async(st.session_state.selected_links))
+                            screenshots = asyncio.run(capture_screenshots_async(st.session_state.selected_links, location))
                             
-                            # Display results
-                            for result in screenshots:
-                                st.subheader(f"📸 Screenshot for: {result['url']}")
-                                
-                                if "error" in result:
-                                    st.error(f"❌ Error: {result['error']}")
-                                else:
-                                    # Show Screenshot
-                                    image = Image.open(BytesIO(result["screenshot"]))
-                                    st.image(image, caption=f"Captured Screenshot - {result['url']}", use_container_width=True)
+                            # Use a temporary file for the ZIP
+                            with tempfile.NamedTemporaryFile(delete=False) as tmp_zip:
+                                zip_filename = tmp_zip.name
 
-                                    # Show AI-Generated Data
-                                    st.subheader("🧠 AI-Generated Data")
-                                    if "error" in result["ai_response"]:
-                                        st.error(f"AI Error: {result['ai_response']['error']}")
+                            with ZipFile(zip_filename, 'w') as zipf:
+                                # Display results
+                                for result in screenshots:
+                                    st.subheader(f"📸 Screenshot for: {result['url']}")
+                                    
+                                    if "error" in result:
+                                        st.error(f"❌ Error: {result['error']}")
                                     else:
-                                        st.json(result["ai_response"])  # Display JSON response
-                                        
-                                        # Add to session state
-                                        st.session_state.screenshot_results.append(result)
-                                        
-                            # ✅ Store results in BigQuery
-                            if st.button("Save to BigQuery"):
-                                try:
-                                    client = create_bigquery_client()
-                                    create_bigquery_table(client)  # Ensure table exists
-                                    insert_into_bigquery(client, st.session_state.screenshot_results)  # Save results
-                                    st.success("✅ Successfully saved results to BigQuery!")
+                                        # Show Screenshot
+                                        image = Image.open(BytesIO(result["screenshot"]))
+                                        st.image(image, caption=f"Captured Screenshot - {result['url']}", use_container_width=True)
 
-                                    # Clear session state after saving to BigQuery
-                                    st.session_state.pop("properties")
-                                    st.session_state.pop("selected_links")
-                                    st.session_state.pop("screenshot_results")
-                                    st.rerun()  # Rerun the app to reflect changes
-                                except Exception as e:
-                                    st.error(f"Error saving to BigQuery: {str(e)}")
+                                        # Show AI-Generated Data
+                                        st.subheader("🧠 AI-Generated Data")
+                                        if "error" in result["ai_response"]:
+                                            st.error(f"AI Error: {result['ai_response']['error']}")
+                                        else:
+                                            st.json(result["ai_response"])  # Display JSON response
+                                            
+                                            # Add to session state
+                                            st.session_state.screenshot_results.append(result)
+                                            
+                                            # Add files to the ZIP
+                                            if os.path.exists(result["screenshot_path"]):
+                                                zipf.write(result["screenshot_path"], os.path.basename(result["screenshot_path"]))
+                                            if os.path.exists(result["ai_json_path"]):
+                                                zipf.write(result["ai_json_path"], os.path.basename(result["ai_json_path"]))
+
+                            with open(zip_filename, "rb") as file:
+                                st.download_button(
+                                    label="⬇️ Download All",
+                                    data=file,
+                                    file_name=f"{location.replace(' ', '_')}.zip",
+                                    mime="application/zip"
+                                )
 
                     except Exception as e:
                         st.error(f"Error capturing screenshots: {str(e)}")
@@ -128,3 +133,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

@@ -16,7 +16,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
-
+import uuid
 load_dotenv()
 
 # Set up credentials from Streamlit secrets
@@ -87,21 +87,21 @@ def capture_webpage_screenshot(driver, url, wait_time=10):
     except Exception as e:
         return {"url": url, "error": str(e)}
     
-async def capture_screenshots_async(urls):
+async def capture_screenshots_async(urls, location):
     """
-    Asynchronously capture screenshots and apply AI processing.
+    Captures screenshots, applies AI processing, and saves them locally for download.
 
     Args:
         urls (list): List of URLs to capture.
 
     Returns:
-        list: A list of dictionaries containing the URL, screenshot, and AI response.
+        list: A list of dictionaries containing local file paths for images and JSON.
     """
     results = []
     
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
         loop = asyncio.get_event_loop()
-        driver = setup_webdriver()  # ✅ Initialize the WebDriver instance
+        driver = setup_webdriver()  # ✅ Initialize WebDriver
         
         futures = [
             loop.run_in_executor(executor, capture_webpage_screenshot, driver, url)
@@ -109,31 +109,43 @@ async def capture_screenshots_async(urls):
         ]
 
         for result in await asyncio.gather(*futures):
-            if "error" in result:
-                results.append(result)  # Store errors separately
+            if "error" in result or "screenshot" not in result:
+                results.append({"url": result.get("url", "Unknown URL"), "error": result.get("error", "Unknown Error")})  # Store errors separately
                 continue  # Skip processing if screenshot failed
             
-            # ✅ Convert image to Base64
+            # ✅ Convert image to Base64 for AI processing
             encoded_image = image_to_base64(result["screenshot"])
 
             # ✅ Apply AI Processing
             try:
-                ai_response = generate(encoded_image)  # Get AI-generated data
+                ai_response = generate(encoded_image)
             except Exception as e:
                 ai_response = {"error": f"AI processing failed: {str(e)}"}
 
-            # ✅ Store everything in results
+            # ✅ Save Screenshot Locally
+            os.makedirs(f"downloads/screenshots/{location.replace(' ', '_')}", exist_ok=True)
+            image_filename = f"downloads/screenshots/{location.replace(' ', '_')}/{uuid.uuid4()}.png"
+            with open(image_filename, "wb") as f:
+                f.write(result["screenshot"])
+
+            # ✅ Save AI JSON Locally
+            os.makedirs(f"downloads/json/{location.replace(' ', '_')}", exist_ok=True)
+            json_filename = f"downloads/json/{location.replace(' ', '_')}/{uuid.uuid4()}.json"
+            with open(json_filename, "w") as f:
+                json.dump(ai_response, f, indent=4)
+
+            # ✅ Store result with local file paths
             results.append({
                 "url": result["url"],
-                "screenshot": result["screenshot"],
+                "screenshot_path": image_filename,
+                "ai_json_path": json_filename,
+                "screenshot": result["screenshot"],  # Ensure this key exists
                 "ai_response": ai_response
             })
 
-        driver.quit()  # ✅ Close WebDriver after all processing
+        driver.quit()  # ✅ Close WebDriver after processing
 
     return results
-    
-    # this function does the same as the function  capture_webpage_screenshot with the modification that it allows a list of urls
 
 def capture_webpage_screenshot_multiple(driver, image_urls, output_folder, wait_time=10):
     """
