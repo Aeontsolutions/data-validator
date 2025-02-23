@@ -10,6 +10,10 @@ import json
 from utils.scraper_utils import capture_webpage_screenshot, image_to_base64, generate
 from utils.bigquery_utils import create_bigquery_client, add_property_row
 
+# Detect whether running locally or on Streamlit Cloud
+def is_running_on_streamlit_cloud():
+    return "STREAMLIT_SERVER_PORT" in os.environ
+
 def main():
     # Add authentication check at the start
     if 'authentication_status' not in st.session_state or not st.session_state['authentication_status']:
@@ -26,11 +30,25 @@ def main():
     chrome_options.add_argument('--disable-gpu')
     chrome_options.add_argument("--disable-extensions")
     chrome_options.add_argument('--remote-debugging-port=9222')
-    chrome_options.binary_location = "/usr/bin/chromium"  # Updated binary location
+
+    # ✅ Explicitly set the correct Chrome binary location
+    chrome_options.binary_location = st.secrets.get("CHROME_BINARY_LOCATION")
+    
+    if is_running_on_streamlit_cloud():
+        # ✅ Use ChromeDriverManager for local development
+        service = ChromeDriverManager().install()
+    else:
+        # ✅ Explicitly set ChromeDriver path
+        service = Service(st.secrets.get("CHROME_DRIVER_LOCATION"))
+
+    # Debugging prints (comment these out later if needed)
+    # st.write("🌍 Running on Streamlit Cloud:" if is_running_on_streamlit_cloud() else "💻 Running Locally")
+    # st.write("🛠️ Using Chrome Binary:", chrome_options.binary_location)
+    # st.write("🚗 Using ChromeDriver:", service.path if isinstance(service, Service) else service)
 
     # Initialize Chrome driver without webdriver_manager
     try:
-        driver = webdriver.Chrome(options=chrome_options)
+        driver = webdriver.Chrome(service=service, options=chrome_options)
     except Exception as e:
         st.error(f"Error initializing Chrome driver: {str(e)}")
         return
@@ -58,7 +76,7 @@ def main():
             if url:
                 try:
                     with st.spinner("Capturing screenshot..."):
-                        screenshot = capture_webpage_screenshot(url, wait_time=wait_time)
+                        screenshot = capture_webpage_screenshot(driver, url, wait_time=wait_time)
                         image = Image.open(BytesIO(screenshot))
                         
                         temp_path = os.path.join(os.getcwd(), "screenshots", "temp.png")
@@ -95,13 +113,13 @@ def main():
                             except Exception as e:
                                 st.error(f"AI data generation failed: {str(e)}")
                                 json_data = {
-                                    'property description': '',
-                                    'property address': '',
+                                    'property_description': '',
+                                    'property_address': '',
                                     'price': '',
-                                    'currency of price': '',
-                                    'number of bedrooms': '',
-                                    'number of bathrooms': '',
-                                    'square feet': ''
+                                    'currency_of_price': '',
+                                    'number_of_bedrooms': '',
+                                    'number_of_bathrooms': '',
+                                    'building_size': ''
                                 }
                             
                             edited_data['property_description'] = st.text_area(

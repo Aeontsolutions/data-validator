@@ -27,11 +27,12 @@ if not os.path.exists("credentials.json"):
 # Set the environment variable to point to the credentials file
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.abspath("credentials.json")
 
-def capture_webpage_screenshot(url, output_path=None, wait_time=10):
+def capture_webpage_screenshot(driver, url, output_path=None, wait_time=10):
     """
     Captures a screenshot of a webpage using Selenium and Chrome.
 
     Args:
+        driver (webdriver.Chrome): The Chrome driver instance
         url (str): The URL of the webpage to capture
         output_path (str, optional): Path where the screenshot should be saved.
                                    If None, returns the image as bytes.
@@ -46,19 +47,6 @@ def capture_webpage_screenshot(url, output_path=None, wait_time=10):
         Exception: If there's an error capturing the screenshot
     """
     try:
-        # Configure Chrome options for Linux environment
-        chrome_options = Options()
-        chrome_options.add_argument('--headless')
-        chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--disable-dev-shm-usage')
-        chrome_options.add_argument('--disable-gpu')
-        chrome_options.add_argument("--disable-extensions")
-        chrome_options.add_argument('--remote-debugging-port=9222')
-        chrome_options.binary_location = "/usr/bin/chromium"  # Updated binary location
-
-        # Initialize Chrome driver without webdriver_manager
-        driver = webdriver.Chrome(options=chrome_options)
-
         # Set window size
         driver.set_window_size(1920, 1080)
 
