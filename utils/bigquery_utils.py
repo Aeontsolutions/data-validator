@@ -40,6 +40,32 @@ def create_bigquery_client():
     # Create and return the client
     return bigquery.Client(credentials=credentials, project=project_id)
 
+def create_bigquery_table(client):
+    """
+    Creates a BigQuery table if it doesn't exist.
+    
+    Args:
+        client (bigquery.Client): The BigQuery client instance.
+    """
+    dataset_id, table_id = st.secrets.get("DATASET_ID"), st.secrets.get("TABLE_ID")
+    dataset_ref = client.dataset(dataset_id)
+    table_ref = dataset_ref.table(table_id)
+
+    schema = [
+        bigquery.SchemaField("url", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("screenshot", "STRING", mode="NULLABLE"),  # Store Base64 screenshot (optional)
+        bigquery.SchemaField("ai_response", "STRING", mode="NULLABLE"),  # Store AI JSON as a string
+        bigquery.SchemaField("timestamp", "TIMESTAMP", mode="REQUIRED"),
+    ]
+
+    try:
+        client.get_table(table_ref)  # Check if table exists
+        st.info("✅ BigQuery table already exists.")
+    except:
+        table = bigquery.Table(table_ref, schema=schema)
+        client.create_table(table)
+        st.success("🚀 BigQuery table created successfully!")
+
 # Fetch rows to validate
 def fetch_data(client):
     # Get environment variables from either source
@@ -176,3 +202,33 @@ def add_property_row(client, property_data, url):
     except Exception as e:
         print(f"Error adding property: {str(e)}")
         return False
+    
+def insert_into_bigquery(client, results):
+    """
+    Inserts AI-processed screenshot data into BigQuery.
+
+    Args:
+        client (bigquery.Client): The BigQuery client instance.
+        results (list): A list of dictionaries containing the URL, screenshot, and AI response.
+    """
+    dataset_id, table_id = st.secrets.get("DATASET_ID"), st.secrets.get("TABLE_ID")
+    table_ref = client.dataset(dataset_id).table(table_id)
+    rows_to_insert = []
+
+    for result in results:
+        if "error" in result:
+            continue  # Skip failed captures
+        
+        rows_to_insert.append({
+            "url": result["url"],
+            "screenshot": result["screenshot"],  # Store Base64 image (optional)
+            "ai_response": json.dumps(result["ai_response"]),  # Convert AI response to JSON string
+            "timestamp": datetime.utcnow().isoformat()
+        })
+
+    errors = client.insert_rows_json(table_ref, rows_to_insert)
+
+    if errors:
+        st.error(f"🚨 BigQuery Insert Errors: {errors}")
+    else:
+        st.success("✅ Successfully saved results to BigQuery!")

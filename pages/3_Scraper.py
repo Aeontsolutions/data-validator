@@ -1,57 +1,25 @@
 import streamlit as st
 import os
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 from PIL import Image
 from io import BytesIO
 import json
-from utils.scraper_utils import capture_webpage_screenshot, image_to_base64, generate, search_properties
-from utils.bigquery_utils import create_bigquery_client, add_property_row
-
-# Detect whether running locally or on Streamlit Cloud
-def is_running_on_streamlit_cloud():
-    return "STREAMLIT_SERVER_PORT" in os.environ
+from utils.scraper_utils import search_properties, capture_screenshots_async
+from utils.bigquery_utils import create_bigquery_client, create_bigquery_table, insert_into_bigquery
+import asyncio
 
 def main():
+    # Add a button in the sidebar to reset session state
+    if st.sidebar.button("Reset Session State"):
+        st.session_state.pop("properties")
+        st.session_state.pop("selected_links")
+        st.rerun()  # Rerun the app to reflect changes
+
     # Add authentication check at the start
     if 'authentication_status' not in st.session_state or not st.session_state['authentication_status']:
         st.error('Please login to continue')
         st.stop()
     
     st.title("Webpage Screenshot Capture Tool")
-    
-    # Set up Chrome options for Linux environment
-    chrome_options = Options()
-    chrome_options.add_argument('--headless')
-    chrome_options.add_argument('--no-sandbox')
-    chrome_options.add_argument('--disable-dev-shm-usage')
-    chrome_options.add_argument('--disable-gpu')
-    chrome_options.add_argument("--disable-extensions")
-    chrome_options.add_argument('--remote-debugging-port=9222')
-
-    # ✅ Explicitly set the correct Chrome binary location
-    chrome_options.binary_location = st.secrets.get("CHROME_BINARY_LOCATION")
-    
-    if is_running_on_streamlit_cloud():
-        # ✅ Use ChromeDriverManager for local development
-        service = ChromeDriverManager().install()
-    else:
-        # ✅ Explicitly set ChromeDriver path
-        service = Service(st.secrets.get("CHROME_DRIVER_LOCATION"))
-
-    # Debugging prints (comment these out later if needed)
-    # st.write("🌍 Running on Streamlit Cloud:" if is_running_on_streamlit_cloud() else "💻 Running Locally")
-    # st.write("🛠️ Using Chrome Binary:", chrome_options.binary_location)
-    # st.write("🚗 Using ChromeDriver:", service.path if isinstance(service, Service) else service)
-
-    # Initialize Chrome driver without webdriver_manager
-    try:
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-    except Exception as e:
-        st.error(f"Error initializing Chrome driver: {str(e)}")
-        return
 
     # Set up credentials from Streamlit secrets
     if not os.path.exists("credentials.json"):
@@ -67,291 +35,84 @@ def main():
         try:
             properties = search_properties(location, st.secrets.get("GOOGLE_SEARCH_API_KEY"), st.secrets.get("GOOGLE_CUSTOM_SEARCH_ENGINE_ID"))
             if properties:
-                st.subheader("Search Results")
-                
-                # Prepare data for the data editor
-                data = [{"Title": prop['title'], "Link": prop['link'], "Select": False} for prop in properties]
-                
-                # Display the search results with clickable links
-                selected_links = []
-                for i, prop in enumerate(data):
-                    col1, col2 = st.columns([0.8, 0.2])
-                    with col1:
-                        st.markdown(f"**[{prop['Title']}]({prop['Link']})**", unsafe_allow_html=True)
-                    with col2:
-                        selected = st.checkbox(f"Select", key=f"select_{i}", value=False)
-                        if selected:
-                            selected_links.append(prop['Link'])
-                if selected_links:
-                    st.subheader("Selected Links")
-                    for link in selected_links:
-                        st.write(f"Selected Link: {link}")
+                # Store the entire list of properties in session state
+                st.session_state.properties = [{"Title": prop['title'], "Link": prop['link'], "Select": False} for prop in properties]
             else:
                 st.warning("No properties found.")
         except Exception as e:
             st.error(f"Error searching properties: {str(e)}")
 
-    input_method = st.radio(
-        "Choose input method:",
-        ["Single URL", "Multiple URLs"]
-    )
-    
-    if input_method == "Single URL":
-        # Single URL input
-        url = st.text_input("Enter webpage URL:")
-        wait_time = st.slider("Page load wait time (seconds)", 5, 30, 10)
+    # Check if properties are stored in session state
+    if 'properties' in st.session_state:
+        st.subheader("Search Results")
         
-        if st.button("Capture Screenshot"):
-            if url:
-                try:
-                    with st.spinner("Capturing screenshot..."):
-                        screenshot = capture_webpage_screenshot(driver, url, wait_time=wait_time)
-                        image = Image.open(BytesIO(screenshot))
-                        
-                        temp_path = os.path.join(os.getcwd(), "screenshots", "temp.png")
-                        os.makedirs(os.path.dirname(temp_path), exist_ok=True)
-                        image.save(temp_path, format="PNG")
-                        
-                        base64_image = image_to_base64(temp_path)
-                        raw_response = generate(base64_image)
-                        
-                        # Parse the nested JSON string
-                        json_data = json.loads(raw_response["response"])
-                        
-                        # Debug print to see the structure
-                        st.write("Debug - JSON Response:", json_data)
-                        
-                        # Create two columns for side-by-side display
-                        col1, col2 = st.columns(2)
-                        
-                        # Display image in left column
-                        with col1:
-                            st.image(image, caption="Captured Screenshot", use_container_width=True)
-                        
-                        # Display editable fields in right column
-                        with col2:
-                            st.subheader("Edit Property Data")
-                            edited_data = {}
+        # Initialize session state for selected links if not already done
+        if 'selected_links' not in st.session_state:
+            st.session_state.selected_links = []
+
+        # Display the search results with clickable links
+        for i, prop in enumerate(st.session_state.properties):
+            col1, col2 = st.columns([0.8, 0.2])
+            with col1:
+                st.markdown(f"**[{prop['Title']}]({prop['Link']})**", unsafe_allow_html=True)
+            with col2:
+                # Use session state to manage checkbox state
+                selected = st.checkbox(
+                    "Select", 
+                    key=f"select_{i}", 
+                    value=prop['Link'] in st.session_state.selected_links
+                )
+                if selected:
+                    if prop['Link'] not in st.session_state.selected_links:
+                        st.session_state.selected_links.append(prop['Link'])
+                else:
+                    if prop['Link'] in st.session_state.selected_links:
+                        st.session_state.selected_links.remove(prop['Link'])
+
+        if st.session_state.selected_links:
+            st.subheader("Selected Links")
+            for link in st.session_state.selected_links:
+                st.write(f"Selected Link: {link}")
+                
+            if st.button("Capture Screenshots"):
+                if st.session_state.selected_links:
+                    try:
+                        with st.spinner("Capturing screenshots and processing AI responses..."):
+                            screenshots = asyncio.run(capture_screenshots_async(st.session_state.selected_links))
                             
-                            # Try to get AI-generated data
-                            try:
-                                base64_image = image_to_base64(temp_path)
-                                raw_response = generate(base64_image)
-                                json_data = json.loads(raw_response["response"])
-                                st.info("AI data generated successfully")
-                            except Exception as e:
-                                st.error(f"AI data generation failed: {str(e)}")
-                                json_data = {
-                                    'property_description': '',
-                                    'property_address': '',
-                                    'price': '',
-                                    'currency_of_price': '',
-                                    'number_of_bedrooms': '',
-                                    'number_of_bathrooms': '',
-                                    'building_size': ''
-                                }
-                            
-                            edited_data['property_description'] = st.text_area(
-                                "Property Description",
-                                value=json_data.get('property description', ''),
-                                height=100
-                            )
-                            
-                            edited_data['property_address'] = st.text_input(
-                                "Property Address",
-                                value=json_data.get('property address', '')
-                            )
-                            
-                            edited_data['price'] = st.text_input(
-                                "Price",
-                                value=json_data.get('price', '')
-                            )
-                            
-                            edited_data['currency_of_price'] = st.text_input(
-                                "Currency",
-                                value=json_data.get('currency of price', '')
-                            )
-                            
-                            edited_data['bedrooms'] = st.text_input(
-                                "Number of Bedrooms",
-                                value=json_data.get('number of bedrooms', '')
-                            )
-                            
-                            edited_data['bathrooms'] = st.text_input(
-                                "Number of Bathrooms",
-                                value=json_data.get('number of bathrooms', '')
-                            )
-                            
-                            edited_data['square_feet'] = st.text_input(
-                                "Square Feet",
-                                value=json_data.get('square feet', '')
-                            )
-                            
-                            # Add submit button
-                            if st.button("Save Property Data"):
-                                client = create_bigquery_client()
-                                if add_property_row(client, edited_data, url):
-                                    st.success("Property data saved successfully!")
-                                else:
-                                    st.error("Failed to save property data")
-                        
-                        if os.path.exists(temp_path):
-                            os.remove(temp_path)
-                            
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
-            else:
-                st.warning("Please enter a URL")
-    
-    else:
-        # Multiple URLs input
-        urls = st.text_area("Enter URLs (one per line):")
-        wait_time = st.slider("Page load wait time (seconds)", 5, 30, 10)
-        output_folder = os.path.join(os.getcwd(), "screenshots")
-        
-        if st.button("Capture Screenshots"):
-            if urls and urls.strip():
-                try:
-                    # Clean and filter URLs
-                    url_list = [url.strip() for url in urls.split('\n') if url.strip() and url.startswith(('http://', 'https://'))]
-                    
-                    if not url_list:
-                        st.warning("Please enter valid URLs (must start with http:// or https://)")
-                        return
-                    
-                    # Create output directory if it doesn't exist
-                    if not os.path.exists(output_folder):
-                        os.makedirs(output_folder)
-                    
-                    with st.spinner(f"Capturing screenshots for {len(url_list)} URLs..."):
-                        output_paths = []
-                        json_data_list = []
-                        try:
-                            for i, url in enumerate(url_list):
-                                try:
-                                    driver.get(url)
-                                    driver.implicitly_wait(wait_time)
-                                    
-                                    safe_filename = f"screenshot_{i+1}.png"
-                                    output_path = os.path.join(output_folder, safe_filename)
-                                    
-                                    screenshot = driver.get_screenshot_as_png()
-                                    with open(output_path, 'wb') as f:
-                                        f.write(screenshot)
-                                    output_paths.append(output_path)
-                                    
-                                    # Add debug prints
-                                    st.write(f"Debug - Processing URL {i+1}: {url}")
-                                    
-                                    base64_image = image_to_base64(output_path)
-                                    raw_response = generate(base64_image)
-                                    
-                                    # Debug print raw response
-                                    st.write(f"Debug - Raw Response {i+1}:", raw_response)
-                                    
-                                    if raw_response and isinstance(raw_response, dict) and "response" in raw_response:
-                                        try:
-                                            json_data = json.loads(raw_response["response"])
-                                            json_data_list.append(json_data)
-                                            
-                                            # Create two columns for side-by-side display
-                                            col1, col2 = st.columns(2)
-                                            
-                                            # Display image in left column
-                                            with col1:
-                                                image = Image.open(output_path)
-                                                st.image(image, caption=f"Screenshot {i+1}: {url}", use_container_width=True)
-                                            
-                                            # Display editable fields in right column
-                                            with col2:
-                                                st.subheader(f"Edit Property Data {i+1}")
-                                                edited_data = {}
-                                                
-                                                # Try to get AI-generated data
-                                                try:
-                                                    base64_image = image_to_base64(output_path)
-                                                    raw_response = generate(base64_image)
-                                                    json_data = json.loads(raw_response["response"])
-                                                    st.info("AI data generated successfully")
-                                                except Exception as e:
-                                                    st.error(f"AI data generation failed: {str(e)}")
-                                                    json_data = {
-                                                        'property description': '',
-                                                        'property address': '',
-                                                        'price': '',
-                                                        'currency of price': '',
-                                                        'number of bedrooms': '',
-                                                        'number of bathrooms': '',
-                                                        'square feet': ''
-                                                    }
-                                                
-                                                edited_data['property_description'] = st.text_area(
-                                                    "Property Description",
-                                                    value=json_data.get('property description', ''),
-                                                    height=100,
-                                                    key=f"desc_{i}"
-                                                )
-                                                
-                                                edited_data['property_address'] = st.text_input(
-                                                    "Property Address",
-                                                    value=json_data.get('property address', ''),
-                                                    key=f"addr_{i}"
-                                                )
-                                                
-                                                edited_data['price'] = st.text_input(
-                                                    "Price",
-                                                    value=json_data.get('price', ''),
-                                                    key=f"price_{i}"
-                                                )
-                                                
-                                                edited_data['currency_of_price'] = st.text_input(
-                                                    "Currency",
-                                                    value=json_data.get('currency of price', ''),
-                                                    key=f"curr_{i}"
-                                                )
-                                                
-                                                edited_data['bedrooms'] = st.text_input(
-                                                    "Number of Bedrooms",
-                                                    value=json_data.get('number of bedrooms', ''),
-                                                    key=f"bed_{i}"
-                                                )
-                                                
-                                                edited_data['bathrooms'] = st.text_input(
-                                                    "Number of Bathrooms",
-                                                    value=json_data.get('number of bathrooms', ''),
-                                                    key=f"bath_{i}"
-                                                )
-                                                
-                                                edited_data['square_feet'] = st.text_input(
-                                                    "Square Feet",
-                                                    value=json_data.get('square feet', ''),
-                                                    key=f"sqft_{i}"
-                                                )
-                                                
-                                                # Add submit button for each property
-                                                if st.button("Save Property Data", key=f"save_{i}"):
-                                                    client = create_bigquery_client()
-                                                    if add_property_row(client, edited_data, url):
-                                                        st.success("Property data saved successfully!")
-                                                    else:
-                                                        st.error("Failed to save property data")
-                                        except json.JSONDecodeError as je:
-                                            st.error(f"Error parsing JSON for URL {url}: {str(je)}")
-                                            st.write("Raw response that caused error:", raw_response)
-                                    else:
-                                        st.error(f"Invalid response format for URL {url}")
-                                        st.write("Raw response:", raw_response)
-                                    
-                                except Exception as e:
-                                    st.error(f"Error capturing screenshot for URL {url}: {str(e)}")
-                                    continue
-                        finally:
-                            driver.quit()
+                            # Display results
+                            for result in screenshots:
+                                st.subheader(f"📸 Screenshot for: {result['url']}")
                                 
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
-            else:
-                st.warning("Please enter at least one URL")
+                                if "error" in result:
+                                    st.error(f"❌ Error: {result['error']}")
+                                else:
+                                    # Show Screenshot
+                                    image = Image.open(BytesIO(result["screenshot"]))
+                                    st.image(image, caption=f"Captured Screenshot - {result['url']}", use_container_width=True)
+
+                                    # Show AI-Generated Data
+                                    st.subheader("🧠 AI-Generated Data")
+                                    if "error" in result["ai_response"]:
+                                        st.error(f"AI Error: {result['ai_response']['error']}")
+                                    else:
+                                        st.json(result["ai_response"])  # Display JSON response
+                                        
+                            # ✅ Store results in BigQuery
+                            if st.button("Save to BigQuery"):
+                                client = create_bigquery_client()
+                                create_bigquery_table(client)  # Ensure table exists
+                                insert_into_bigquery(client, screenshots)  # Save results
+
+                                # Clear session state after saving to BigQuery
+                                st.session_state.pop("properties")
+                                st.session_state.pop("selected_links")
+                                st.rerun()  # Rerun the app to reflect changes
+
+                    except Exception as e:
+                        st.error(f"Error capturing screenshots: {str(e)}")
+                else:
+                    st.warning("No links selected for capture.")
 
 if __name__ == "__main__":
     main()
