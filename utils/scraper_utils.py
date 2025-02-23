@@ -16,6 +16,9 @@ from dotenv import load_dotenv
 from google.oauth2 import service_account
 import google.cloud.aiplatform as aiplatform
 from webdriver_manager.chrome import ChromeDriverManager
+import logging
+from typing import List, Dict
+import requests
 
 load_dotenv()
 
@@ -209,3 +212,32 @@ safety_settings = [
         threshold=SafetySetting.HarmBlockThreshold.OFF
     ),
 ]
+
+def search_properties(location: str, api_key: str, search_engine_id: str, num_results: int = 20) -> List[Dict]:
+    """
+    Query Google Custom Search API for property results based on the request.
+
+    :param location: Location of the property.
+    :param api_key: Google API key.
+    :param search_engine_id: Google Custom Search Engine ID.
+    :param num_results: Number of results to retrieve.
+    :return: List of dictionaries containing the top num_results search results.
+    """
+    
+    query = f"real estate for sale in {location} Jamaica -airbnb -rent -lot -land -commercial"
+    url = "https://www.googleapis.com/customsearch/v1"
+    results = []
+    for start in range(1, num_results, 10):
+        params = {
+            "q": query,
+            "key": api_key,
+            "cx": search_engine_id,
+            "num": 10,
+            "start": start
+        }
+        response = requests.get(url, params=params)
+        if response.status_code != 200:
+            raise Exception(f"Google Search API error: {response.status_code}, {response.text}")
+        items = response.json().get("items", [])
+        results.extend([{"title": item.get("title"), "link": item.get("link"), "snippet": item.get("snippet")} for item in items])
+    return results

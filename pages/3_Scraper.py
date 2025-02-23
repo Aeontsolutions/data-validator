@@ -7,7 +7,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from PIL import Image
 from io import BytesIO
 import json
-from utils.scraper_utils import capture_webpage_screenshot, image_to_base64, generate
+from utils.scraper_utils import capture_webpage_screenshot, image_to_base64, generate, search_properties
 from utils.bigquery_utils import create_bigquery_client, add_property_row
 
 # Detect whether running locally or on Streamlit Cloud
@@ -62,6 +62,35 @@ def main():
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.abspath("credentials.json")
 
     # Input method selection
+    location = st.text_input("Enter location:")
+    if st.button("Search Properties"):
+        try:
+            properties = search_properties(location, st.secrets.get("GOOGLE_SEARCH_API_KEY"), st.secrets.get("GOOGLE_CUSTOM_SEARCH_ENGINE_ID"))
+            if properties:
+                st.subheader("Search Results")
+                
+                # Prepare data for the data editor
+                data = [{"Title": prop['title'], "Link": prop['link'], "Select": False} for prop in properties]
+                
+                # Display the search results with clickable links
+                selected_links = []
+                for i, prop in enumerate(data):
+                    col1, col2 = st.columns([0.8, 0.2])
+                    with col1:
+                        st.markdown(f"**[{prop['Title']}]({prop['Link']})**", unsafe_allow_html=True)
+                    with col2:
+                        selected = st.checkbox(f"Select", key=f"select_{i}", value=False)
+                        if selected:
+                            selected_links.append(prop['Link'])
+                if selected_links:
+                    st.subheader("Selected Links")
+                    for link in selected_links:
+                        st.write(f"Selected Link: {link}")
+            else:
+                st.warning("No properties found.")
+        except Exception as e:
+            st.error(f"Error searching properties: {str(e)}")
+
     input_method = st.radio(
         "Choose input method:",
         ["Single URL", "Multiple URLs"]
