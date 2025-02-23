@@ -47,7 +47,7 @@ def create_bigquery_table(client):
     Args:
         client (bigquery.Client): The BigQuery client instance.
     """
-    dataset_id, table_id = st.secrets.get("DATASET_ID"), st.secrets.get("TABLE_ID")
+    dataset_id, table_id = st.secrets.get("DATASET_ID"), st.secrets.get("SCRAPER_TABLE_ID")
     dataset_ref = client.dataset(dataset_id)
     table_ref = dataset_ref.table(table_id)
 

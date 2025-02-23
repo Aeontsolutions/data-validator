@@ -76,6 +76,10 @@ def main():
                 
             if st.button("Capture Screenshots"):
                 if st.session_state.selected_links:
+                    
+                    if "screenshot_results" not in st.session_state:
+                        st.session_state.screenshot_results = []
+                        
                     try:
                         with st.spinner("Capturing screenshots and processing AI responses..."):
                             screenshots = asyncio.run(capture_screenshots_async(st.session_state.selected_links))
@@ -98,16 +102,24 @@ def main():
                                     else:
                                         st.json(result["ai_response"])  # Display JSON response
                                         
+                                        # Add to session state
+                                        st.session_state.screenshot_results.append(result)
+                                        
                             # ✅ Store results in BigQuery
                             if st.button("Save to BigQuery"):
-                                client = create_bigquery_client()
-                                create_bigquery_table(client)  # Ensure table exists
-                                insert_into_bigquery(client, screenshots)  # Save results
+                                try:
+                                    client = create_bigquery_client()
+                                    create_bigquery_table(client)  # Ensure table exists
+                                    insert_into_bigquery(client, st.session_state.screenshot_results)  # Save results
+                                    st.success("✅ Successfully saved results to BigQuery!")
 
-                                # Clear session state after saving to BigQuery
-                                st.session_state.pop("properties")
-                                st.session_state.pop("selected_links")
-                                st.rerun()  # Rerun the app to reflect changes
+                                    # Clear session state after saving to BigQuery
+                                    st.session_state.pop("properties")
+                                    st.session_state.pop("selected_links")
+                                    st.session_state.pop("screenshot_results")
+                                    st.rerun()  # Rerun the app to reflect changes
+                                except Exception as e:
+                                    st.error(f"Error saving to BigQuery: {str(e)}")
 
                     except Exception as e:
                         st.error(f"Error capturing screenshots: {str(e)}")
