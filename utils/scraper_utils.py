@@ -276,7 +276,7 @@ safety_settings = [
     ),
 ]
 
-def search_properties(location: str, api_key: str, search_engine_id: str, num_results: int = 20) -> List[Dict]:
+def search_properties(location: str, api_key: str, search_engine_id: str, num_results: int = 100) -> List[Dict]:
     """
     Query Google Custom Search API for property results based on the request.
 
