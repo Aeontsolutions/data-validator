@@ -82,11 +82,20 @@ cp .env.example .env
 
 ### Project Structure
 ```
+├── .streamlit/              # Streamlit configuration
+│   └── secrets.toml        # Streamlit secrets
+├── downloads/              # Downloaded files
+│   └── screenshots/        # Screenshots
+│   └── json/               # JSON data
+├── resources/              # Resources
+│   └── jamaican_communities_geocoded.csv    # Google Cloud credentials
 ├── pages/                  # Streamlit pages
 │   ├── 1_Validator.py     # Validation interface
 │   └── 2_Dashboard.py     # Analytics dashboard
+│   └── 3_Scraper.py       # Scraper interface
 ├── utils/                  # Utility functions
 │   └── bigquery_utils.py  # BigQuery operations
+│   └── scraper_utils.py   # Scraper operations
 ├── .env                   # Environment variables
 ├── pyproject.toml         # Poetry configuration
 ├── poetry.lock           # Lock file
@@ -120,6 +129,18 @@ cp .env.example .env
    - Set price ranges
    - Filter by number of rooms
    - Hover over points for detailed information
+
+### Scraper Interface
+1. Navigate to the Scraper page
+2. Enter the location you want to scrape
+3. Click "Scrape Properties"
+4. Review and verify property details:
+   - Price
+   - Square footage
+   - Room count
+   - Bathroom count
+   - Property type
+5. Click "Download All" to download the properties
 
 ## Data Structure
 
