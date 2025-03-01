@@ -225,15 +225,16 @@ tabs = st.tabs(["Communities", "Rooms", "Bathrooms", "Square Footage", "Property
 # Communities Tab
 with tabs[0]:
     st.markdown("### Community Analysis")
-    # Use os.path to construct the correct file path
-    current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    file_path = os.path.join(current_dir, 'resources', 'jamaican_communities_geocoded.csv')
+    # Replace CSV reading with a BigQuery query
+    query = """
+        SELECT * FROM `price-aggregator-f9e4b.aggregated_prices.communities`
+    """
+    communities_df = client.query(query).to_dataframe()
     col1, col2 = st.columns(2)
     with col1:
         # table of communities in training data
         communities = filtered_df['community'].value_counts().reset_index()
-        communities_df = pd.read_csv(file_path)
-        communities_df.columns = communities_df.columns.str.lower()
+        communities.columns = communities.columns.str.lower()
         st.dataframe(communities, use_container_width=True, hide_index=True)
         
         property_types_by_community = filtered_df.groupby(['community', 'property_type']).size().reset_index(name='count')
@@ -538,6 +539,31 @@ with tabs[5]:
         aspect='auto'
     )
     st.plotly_chart(fig_corr, use_container_width=True, key='correlation_heatmap')
+
+# Function to insert a new row into the BigQuery table
+def insert_community_row(client, community, parish, city, latitude, longitude):
+    query = f"""
+    INSERT INTO `price-aggregator-f9e4b.aggregated_prices.communities` (Community, Parish, City, Latitude, Longitude)
+    VALUES ('{community}', '{parish}', '{city}', {latitude}, {longitude})
+    """
+    client.query(query).result()
+
+# Add a form for inserting a new community
+st.markdown("### Add a New Community")
+with st.form("add_community_form"):
+    community = st.text_input("Community")
+    parish = st.text_input("Parish")
+    city = st.text_input("City")
+    latitude = st.number_input("Latitude", format="%.6f")
+    longitude = st.number_input("Longitude", format="%.6f")
+    
+    submitted = st.form_submit_button("Add Community")
+    if submitted:
+        if community and parish and city:
+            insert_community_row(client, community, parish, city, latitude, longitude)
+            st.success("Community added successfully!")
+        else:
+            st.error("Please fill in all fields.")
 
 # Footer
 st.markdown("---")
