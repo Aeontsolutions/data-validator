@@ -4,7 +4,6 @@ from PIL import Image
 from io import BytesIO
 import json
 from utils.scraper_utils import search_properties, capture_screenshots_async
-from utils.bigquery_utils import create_bigquery_client, create_bigquery_table, insert_into_bigquery
 import asyncio
 from zipfile import ZipFile
 import tempfile

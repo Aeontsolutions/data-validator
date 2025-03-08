@@ -47,23 +47,23 @@ def create_bigquery_table(client):
     Args:
         client (bigquery.Client): The BigQuery client instance.
     """
+    project_id = st.secrets.get("PROJECT_ID") or os.getenv('PROJECT_ID')
     dataset_id, table_id = st.secrets.get("DATASET_ID"), st.secrets.get("SCRAPER_TABLE_ID")
     dataset_ref = client.dataset(dataset_id)
     table_ref = dataset_ref.table(table_id)
 
     schema = [
         bigquery.SchemaField("url", "STRING", mode="REQUIRED"),
-        bigquery.SchemaField("screenshot", "STRING", mode="NULLABLE"),  # Store Base64 screenshot (optional)
+        # bigquery.SchemaField("screenshot", "STRING", mode="NULLABLE"),  # Store Base64 screenshot (optional)
         bigquery.SchemaField("ai_response", "STRING", mode="NULLABLE"),  # Store AI JSON as a string
         bigquery.SchemaField("timestamp", "TIMESTAMP", mode="REQUIRED"),
     ]
 
     try:
-        client.get_table(table_ref)  # Check if table exists
+        client.get_table(f"{project_id}.{dataset_id}.{table_id}")  # Check if table exists
         st.info("✅ BigQuery table already exists.")
     except:
-        table = bigquery.Table(table_ref, schema=schema)
-        client.create_table(table)
+        client.create_table(f"{project_id}.{dataset_id}.{table_id}", schema=schema)
         st.success("🚀 BigQuery table created successfully!")
 
 # Fetch rows to validate

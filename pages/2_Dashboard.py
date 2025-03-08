@@ -567,6 +567,16 @@ with st.sidebar.expander("Add Community", expanded=False):
             else:
                 st.sidebar.error("Please fill in all fields.")
 
+# Add a download button for the DataFrame in the sidebar
+st.sidebar.markdown("### Download Data")
+csv = df.to_csv(index=False)
+st.sidebar.download_button(
+    label="Download data as CSV",
+    data=csv,
+    file_name='data.csv',
+    mime='text/csv'
+)
+
 # Footer
 st.markdown("---")
 st.markdown(f"<div style='text-align: center; color: #666;'>Last updated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}</div>", unsafe_allow_html=True)
